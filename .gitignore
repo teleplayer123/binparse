@@ -1,1 +1,7 @@
 /target
+text.log
+output*
+/src/helpers.rs
+parse_file.exe
+test.hex
+notes.txt
