@@ -2,6 +2,11 @@ use std::fs::File;
 use std::io::{self, Read};
 use std::path::Path;
 
+// Magic bytes
+pub fn dtb_magic() -> Vec<Vec<u8>> {
+    vec![b"\xd0\x0d\xfe\xed".to_vec()]
+}
+
 // Device Tree Blob (DTB) header struct
 #[derive(Debug)]
 pub struct DtbHeader {
