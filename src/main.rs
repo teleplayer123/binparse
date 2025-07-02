@@ -4,6 +4,7 @@ use std::io;
 mod srec;
 mod uboot;
 mod ihex;
+mod dtb;
 
 
 fn main() -> io::Result<()> {
@@ -43,6 +44,16 @@ fn main() -> io::Result<()> {
             }
         }
         Ok(())
+    } else if mode == "dtb" {
+        match dtb::parse_dtb_file(&filename) {
+            Ok(header) => {
+                println!("Successfully parsed DTB file '{}'. Header: {:?}", filename, header);
+            }
+            Err(e) => {
+                eprint!("Error processing DTB file: {}", e);
+            }
+        }
+        Ok(())
     } else {
         eprintln!("Unsupported mode: {}", mode);
         Ok(())
@@ -67,8 +78,8 @@ impl CliArgs {
         } else {
             "uboot".to_string()
         };
-        if mode != "uboot" && mode != "srec" && mode != "ihex" {
-            panic!("Invalid mode: {}. Options: [uboot|srec|ihex]", mode);
+        if mode != "uboot" && mode != "srec" && mode != "ihex" && mode != "dtb" {
+            panic!("Invalid mode: {}. Options: [uboot|srec|ihex|dtb]", mode);
         }
 
         CliArgs { infile, outfile, mode }

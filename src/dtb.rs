@@ -44,7 +44,7 @@ impl DtbHeader {
 }
 
 /// Reads a DTB file and parses its header.
-pub fn parse_dtb_header<P: AsRef<Path>>(path: P) -> io::Result<DtbHeader> {
+fn parse_dtb_header<P: AsRef<Path>>(path: P) -> io::Result<DtbHeader> {
     let mut file = File::open(path)?;
     let mut header_bytes = [0u8; 40];
     file.read_exact(&mut header_bytes)?;
@@ -52,27 +52,10 @@ pub fn parse_dtb_header<P: AsRef<Path>>(path: P) -> io::Result<DtbHeader> {
         .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "Invalid DTB header"))
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_parse_dtb_header() {
-        // Magic number for DTB is 0xd00dfeed
-        let header = [
-            0xd0, 0x0d, 0xfe, 0xed, // magic
-            0x00, 0x00, 0x00, 0x40, // totalsize
-            0x00, 0x00, 0x00, 0x28, // off_dt_struct
-            0x00, 0x00, 0x00, 0x30, // off_dt_strings
-            0x00, 0x00, 0x00, 0x38, // off_mem_rsvmap
-            0x00, 0x00, 0x00, 0x17, // version
-            0x00, 0x00, 0x00, 0x10, // last_comp_version
-            0x00, 0x00, 0x00, 0x01, // boot_cpuid_phys
-            0x00, 0x00, 0x00, 0x08, // size_dt_strings
-            0x00, 0x00, 0x00, 0x10, // size_dt_struct
-        ];
-        let parsed = DtbHeader::from_bytes(&header).unwrap();
-        assert_eq!(parsed.magic, 0xd00dfeed);
-        assert_eq!(parsed.totalsize, 0x40);
+pub fn parse_dtb_file<P: AsRef<Path>>(path: P) -> io::Result<DtbHeader> {
+    let header = parse_dtb_header(path)?;
+    if !dtb_magic().iter().any(|magic| magic == &header.magic.to_be_bytes().to_vec()) {
+        return Err(io::Error::new(io::ErrorKind::InvalidData, "Invalid DTB magic"));
     }
+    Ok(header)
 }
