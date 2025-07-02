@@ -2,6 +2,6 @@
 text.log
 output*
 /src/helpers.rs
-parse_file.exe
-test.hex
+binparse.exe
 notes.txt
+test*
