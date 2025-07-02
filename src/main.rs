@@ -75,11 +75,7 @@ impl CliArgs {
             panic!("Usage: {} <mode> <input_file> [output_file]\nmodes: [uboot|srec|ihex|dtb]", args[0]);
         }
         let mode = args[1].clone();
-        let infile = if args.len() >= 3 {
-            args[2].clone()
-        } else {
-            panic!("Usage: {} <mode> <input_file> [output_file]\nmodes: [uboot|srec|ihex|dtb]", args[0]);
-        };
+        let infile = args[2].clone();
         let outfile = if args.len() == 4 {
             Some(args[3].clone())
         } else {
