@@ -10,7 +10,10 @@ mod dtb;
 fn main() -> io::Result<()> {
     let args: Vec<String> = env::args().collect();
     let cli_args = CliArgs::new(&args);
-    let outfile = cli_args.outfile.to_string();
+    let outfile = match &cli_args.outfile {
+        Some(out) => out.to_string(),
+        None => "".to_string(),
+    };
     let filename = cli_args.infile.to_string();
     let mode = cli_args.mode.to_string();
     if mode == "uboot" {
@@ -63,25 +66,29 @@ fn main() -> io::Result<()> {
 struct CliArgs {
     mode: String,
     infile: String,
-    outfile: String,
+    outfile: Option<String>,
 }
 
 impl CliArgs {
     fn new(args: &[String]) -> CliArgs {
-        if args.len() < 3 {
-            panic!("Usage: {} <input_file> <output_file> [mode]", args[0]);
+        if args.len() < 2 || args.len() > 4 {
+            panic!("Usage: {} <input_file> <mode> [output_file]", args[0]);
         }
         let infile = args[1].clone();
-        let outfile = args[2].clone();
-        let mode = if args.len() > 3 {
-            args[3].clone()
+        let mode = if args.len() >= 2 {
+            args[2].clone()
         } else {
-            "uboot".to_string()
+            panic!("Usage: {} <input_file> <mode> [output_file]", args[0]);
+        };
+        let outfile = if args.len() == 4 {
+            Some(args[3].clone())
+        } else {
+            None
         };
         if mode != "uboot" && mode != "srec" && mode != "ihex" && mode != "dtb" {
             panic!("Invalid mode: {}. Options: [uboot|srec|ihex|dtb]", mode);
         }
 
-        CliArgs { infile, outfile, mode }
+        CliArgs { mode, infile, outfile }
     }
 }
