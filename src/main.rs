@@ -71,14 +71,14 @@ struct CliArgs {
 
 impl CliArgs {
     fn new(args: &[String]) -> CliArgs {
-        if args.len() < 2 || args.len() > 4 {
+        if args.len() < 3 || args.len() > 4 {
             panic!("Usage: {} <input_file> <mode> [output_file]", args[0]);
         }
-        let infile = args[1].clone();
-        let mode = if args.len() >= 2 {
+        let mode = args[1].clone();
+        let infile = if args.len() >= 3 {
             args[2].clone()
         } else {
-            panic!("Usage: {} <input_file> <mode> [output_file]", args[0]);
+            panic!("Usage: {} <mode> <input_file> [output_file]\nmodes: [uboot|srec|ihex|dtb]", args[0]);
         };
         let outfile = if args.len() == 4 {
             Some(args[3].clone())
