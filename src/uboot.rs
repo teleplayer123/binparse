@@ -1,13 +1,29 @@
 use std::fs;
 use std::io::{self, BufRead, Write};
 
+// Magic bytes for u-boot
+fn uboot_magic() -> Vec<Vec<u8>> {
+    vec![b"\x27\x05\x19\x56".to_vec(), b"\x56\x19\x05\x27".to_vec()]
+}
 
+// Validate u-boot hexdump has valid magic bytes
+fn validate_uboot_magic(line: &str) -> bool {
+    for magic in uboot_magic() {
+        if line.as_bytes().starts_with(&magic) {
+            return true;
+        }
+    }
+    false
+}
+
+// Parse u-boot hexdump
 pub fn parse_file(path: &str, outfile: &str) -> io::Result<()> {
     let file = fs::File::open(path)?;
     let reader = io::BufReader::new(file);  
     let mut output_file = fs::File::create(outfile)?;
     let mut hexstr = String::new();
     let mut line_num = 0;
+    let mut msg = String::new();
     for line_result in reader.lines() {
         line_num = line_num + 1;
         println!("parsing line number: {}", line_num);
@@ -38,6 +54,11 @@ pub fn parse_file(path: &str, outfile: &str) -> io::Result<()> {
                         } else if hexstr.len() % 2 != 0 {
                             eprintln!("Warning: Odd number of hex digits at the end of a line: {}", line);
                         }
+                        let cointains_magic = validate_uboot_magic(line.as_str());
+                        if cointains_magic {
+                            println!("Found u-boot magic bytes in line: {}", line);
+                            msg = format!("Found u-boot magic bytes in line: {}", line);
+                        }
                     }
                     hexstr.clear(); // Clear hexstr for the next line
                 } else {
@@ -48,6 +69,11 @@ pub fn parse_file(path: &str, outfile: &str) -> io::Result<()> {
                 eprintln!("Error reading line: {}", e);
             }
         }
+    }
+    if !msg.is_empty() {
+        println!("{}", msg);
+    } else {
+        println!("No u-boot magic bytes found in the file.");
     }
     Ok(())
 }
