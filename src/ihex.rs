@@ -1,7 +1,7 @@
 use std::fs;
 use std::io::{self, BufRead, Write};
 
-//parse intel hex file
+// Parse intel hex file
 
 struct IHexRecord {
     length: u8,

@@ -23,7 +23,7 @@ pub struct DtbHeader {
 }
 
 impl DtbHeader {
-    /// Parses a DTB header from a byte slice.
+    // Parses a DTB header from a byte slice.
     pub fn from_bytes(bytes: &[u8]) -> Option<Self> {
         if bytes.len() < 40 {
             return None;
@@ -43,7 +43,7 @@ impl DtbHeader {
     }
 }
 
-/// Reads a DTB file and parses its header.
+// Reads a DTB file and parses its header.
 fn parse_dtb_header<P: AsRef<Path>>(path: P) -> io::Result<DtbHeader> {
     let mut file = File::open(path)?;
     let mut header_bytes = [0u8; 40];
@@ -52,6 +52,7 @@ fn parse_dtb_header<P: AsRef<Path>>(path: P) -> io::Result<DtbHeader> {
         .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "Invalid DTB header"))
 }
 
+// Validates and parses a DTB file, returning its header if valid.
 pub fn parse_dtb_file<P: AsRef<Path>>(path: P) -> io::Result<DtbHeader> {
     let header = parse_dtb_header(path)?;
     if !dtb_magic().iter().any(|magic| magic == &header.magic.to_be_bytes().to_vec()) {
