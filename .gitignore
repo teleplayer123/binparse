@@ -5,3 +5,4 @@ output*
 binparse.exe
 notes.txt
 test*
+Cargo.lock
