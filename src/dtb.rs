@@ -22,6 +22,12 @@ pub struct DtbHeader {
     pub size_dt_struct: u32,
 }
 
+#[derive(Debug)]
+pub struct DtbReserveEntry {
+    pub addr: u64,
+    pub size: u64,
+}
+
 impl DtbHeader {
     // Parses a DTB header from a byte slice.
     pub fn from_bytes(bytes: &[u8]) -> Option<Self> {
@@ -58,5 +64,7 @@ pub fn parse_dtb_file<P: AsRef<Path>>(path: P) -> io::Result<DtbHeader> {
     if !dtb_magic().iter().any(|magic| magic == &header.magic.to_be_bytes().to_vec()) {
         return Err(io::Error::new(io::ErrorKind::InvalidData, "Invalid DTB magic"));
     }
+    // let mut output_file = fs::File::create(outfile)?;
+
     Ok(header)
 }
