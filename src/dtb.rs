@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::fs::File;
 use std::io::{self, Read};
 use std::path::Path;
@@ -22,12 +23,6 @@ pub struct DtbHeader {
     pub size_dt_struct: u32,
 }
 
-#[derive(Debug)]
-pub struct DtbReserveEntry {
-    pub addr: u64,
-    pub size: u64,
-}
-
 impl DtbHeader {
     // Parses a DTB header from a byte slice.
     pub fn from_bytes(bytes: &[u8]) -> Option<Self> {
@@ -49,22 +44,68 @@ impl DtbHeader {
     }
 }
 
+#[derive(Debug)]
+pub struct DtbReserveEntry {
+    pub addr: u64,
+    pub size: u64,
+}
+
+impl DtbReserveEntry {
+    // Parses a reserve entry from a byte slice.
+    pub fn from_bytes(bytes: &[u8]) -> Option<Self> {
+        if bytes.len() < 16 {
+            return None;
+        }
+        Some(Self {
+            addr: u64::from_be_bytes([bytes[0], bytes[1], bytes[2], bytes[3],
+                                      bytes[4], bytes[5], bytes[6], bytes[7]]),
+            size: u64::from_be_bytes([bytes[8], bytes[9], bytes[10], bytes[11],
+                                      bytes[12], bytes[13], bytes[14], bytes[15]]),
+        })
+    }
+}
+
+enum DtbBlocks {
+    Header(DtbHeader),
+    ReserveEntries(Vec<DtbReserveEntry>),
+}
+
 // Reads a DTB file and parses its header.
-fn parse_dtb_header<P: AsRef<Path>>(path: P) -> io::Result<DtbHeader> {
+fn parse_dtb_header<P: AsRef<Path>>(path: P) -> io::Result<HashMap<String, DtbBlocks>> {
     let mut file = File::open(path)?;
     let mut header_bytes = [0u8; 40];
     file.read_exact(&mut header_bytes)?;
-    DtbHeader::from_bytes(&header_bytes)
-        .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "Invalid DTB header"))
+    let dtb_header = DtbHeader::from_bytes(&header_bytes)
+        .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "Invalid DTB header"));
+    let mut blocks = HashMap::new();
+    blocks.insert("header".to_string(), DtbBlocks::Header(dtb_header.unwrap()));
+    let mut reserve_entry_bytes = [0u8; 16];
+    let mut reserve_entries = Vec::new();
+    file.read_exact(&mut reserve_entry_bytes).unwrap();
+    if let Some(entry) = DtbReserveEntry::from_bytes(&reserve_entry_bytes) {
+        reserve_entries.push(entry);
+    } else {
+        return Err(io::Error::new(io::ErrorKind::InvalidData, "Invalid reserve entry"));
+    }
+    
+    if !reserve_entries.is_empty() {
+        blocks.insert("reserve_entries".to_string(), DtbBlocks::ReserveEntries(reserve_entries));
+    }
+    Ok(blocks)
 }
 
 // Validates and parses a DTB file, returning its header if valid.
-pub fn parse_dtb_file<P: AsRef<Path>>(path: P) -> io::Result<DtbHeader> {
-    let header = parse_dtb_header(path)?;
-    if !dtb_magic().iter().any(|magic| magic == &header.magic.to_be_bytes().to_vec()) {
-        return Err(io::Error::new(io::ErrorKind::InvalidData, "Invalid DTB magic"));
+pub fn parse_dtb_file<P: AsRef<Path>>(path: P) -> io::Result<()> {
+    let header = parse_dtb_header(path)
+        .expect("Failed to parse DTB header");
+    let magic_valid = if let Some(DtbBlocks::Header(dtb_header)) = header.get("header") {
+        dtb_magic().iter().any(|magic| magic == &dtb_header.magic.to_be_bytes().to_vec())
+    } else {
+        false
+    };
+    if !magic_valid {
+        dbg!("Invalid DTB magic");
     }
     // let mut output_file = fs::File::create(outfile)?;
-
-    Ok(header)
+    Ok(())
 }
