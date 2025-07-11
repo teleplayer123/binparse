@@ -82,12 +82,12 @@ fn parse_dtb_header<P: AsRef<Path>>(path: P) -> io::Result<HashMap<String, DtbBl
     let mut reserve_entry_bytes = [0u8; 16];
     let mut reserve_entries = Vec::new();
     file.read_exact(&mut reserve_entry_bytes).unwrap();
-    if let Some(entry) = DtbReserveEntry::from_bytes(&reserve_entry_bytes) {
+    while let Some(entry) = DtbReserveEntry::from_bytes(&reserve_entry_bytes) {
         reserve_entries.push(entry);
-    } else {
-        return Err(io::Error::new(io::ErrorKind::InvalidData, "Invalid reserve entry"));
+        if file.read_exact(&mut reserve_entry_bytes).is_err() {
+            break;
+        }
     }
-    
     if !reserve_entries.is_empty() {
         blocks.insert("reserve_entries".to_string(), DtbBlocks::ReserveEntries(reserve_entries));
     }
