@@ -102,9 +102,8 @@ fn parse_dtb_header<P: AsRef<Path>>(path: P) -> io::Result<HashMap<String, DtbBl
     // Read the reserve entries if any
     let mut reserve_entry_bytes = [0u8; 16];
     let mut reserve_entries = HashMap::new();
-    let offset = dtb_aligned(dtb_header.off_mem_rsvmap as usize);
     // Seek to reserved memory map offset 
-    file.seek(io::SeekFrom::Start(offset as u64))?;
+    file.seek(io::SeekFrom::Start(dtb_header.off_mem_rsvmap as u64))?;
     file.read_exact(&mut reserve_entry_bytes).unwrap();
     while let Some(entry) = DtbReserveEntry::from_bytes(&reserve_entry_bytes) {
         reserve_entries.insert(format!("{:x}", entry.addr), entry.size);
@@ -117,6 +116,9 @@ fn parse_dtb_header<P: AsRef<Path>>(path: P) -> io::Result<HashMap<String, DtbBl
     if !reserve_entries.is_empty() {
         blocks.insert("reserve_entries".to_string(), DtbBlocks::ReserveEntries(reserve_entries));
     }
+
+    // Parse the device tree structure into nodes
+
 
     Ok(blocks)
 }
