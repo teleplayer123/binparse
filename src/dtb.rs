@@ -8,6 +8,16 @@ pub fn dtb_magic() -> Vec<Vec<u8>> {
     vec![b"\xd0\x0d\xfe\xed".to_vec()]
 }
 
+fn dtb_aligned(size: usize) -> usize {
+    const DTB_ALIGN: usize = 8;
+    let rem = size % DTB_ALIGN;
+    if rem == 0 {
+        size
+    } else {
+        size + DTB_ALIGN - rem
+    }
+}
+
 // Device Tree Blob (DTB) header struct
 #[derive(Debug, Clone)]
 pub struct DtbHeader {
@@ -74,27 +84,28 @@ enum DtbBlocks {
 fn parse_dtb_header<P: AsRef<Path>>(path: P) -> io::Result<HashMap<String, DtbBlocks>> {
     let mut file = File::open(path)?;
     let mut header_bytes = [0u8; 40];
+    let mut blocks = HashMap::new();
+    // Read the first 40 bytes for the DTB header
     file.read_exact(&mut header_bytes)?;
     let dtb_header = DtbHeader::from_bytes(&header_bytes)
         .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "Invalid DTB header"))?;
-    let mut blocks = HashMap::new();
     blocks.insert("header".to_string(), DtbBlocks::Header(dtb_header.clone()));
+    // Read the reserve entries if they exist
     let mut reserve_entry_bytes = [0u8; 16];
     let mut reserve_entries = HashMap::new();
-    file.seek(io::SeekFrom::Start(dtb_header.off_mem_rsvmap as u64))?;
+    let offset = dtb_aligned(dtb_header.off_mem_rsvmap as usize);
+    file.seek(io::SeekFrom::Start(offset as u64))?;
     file.read_exact(&mut reserve_entry_bytes).unwrap();
     while let Some(entry) = DtbReserveEntry::from_bytes(&reserve_entry_bytes) {
         reserve_entries.insert(format!("{:x}", entry.addr), entry.size);
-        if file.read_exact(&mut reserve_entry_bytes).is_err() {
-            break;
-        } else if reserve_entry_bytes.iter().all(|&b| b == 0) {
+        if entry.addr == 0 && entry.size == 0 {
             break; // End of reserve entries addr and size are both zero
         }
     }
-    blocks.insert(String::from("reserved_entries"), DtbBlocks::ReserveEntries(reserve_entries)).expect("msgic: Failed to insert reserve entries into blocks");
-    // if !reserve_entries.is_empty() {
-    //     blocks.insert("reserve_entries".to_string(), DtbBlocks::ReserveEntries(reserve_entries));
-    // }
+    // blocks.insert("reserved_entries".to_string(), DtbBlocks::ReserveEntries(reserve_entries));
+    if !reserve_entries.is_empty() {
+        blocks.insert("reserve_entries".to_string(), DtbBlocks::ReserveEntries(reserve_entries));
+    }
     Ok(blocks)
 }
 

@@ -13,14 +13,3 @@ pub fn crc32(data: &[u8]) -> u32 {
     }
     !crc
 }
-
-pub fn crc32_from_file<P: AsRef<Path>>(path: P) -> io::Result<u32> {
-    let mut file = File::open(path)?;
-    let mut buffer = Vec::new();
-    file.read_to_end(&mut buffer)?;
-    Ok(crc32(&buffer))
-}
-
-pub fn align_8b(size: usize) -> usize {
-    (size + 7) & !7
-}
