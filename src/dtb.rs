@@ -9,7 +9,7 @@ pub fn dtb_magic() -> Vec<Vec<u8>> {
 }
 
 fn dtb_aligned(size: usize) -> usize {
-    const DTB_ALIGN: usize = 8;
+    const DTB_ALIGN: usize = 4;
     let rem = size % DTB_ALIGN;
     if rem == 0 {
         size
@@ -82,14 +82,23 @@ enum DtbBlocks {
 
 // Reads a DTB file and parses its header.
 fn parse_dtb_header<P: AsRef<Path>>(path: P) -> io::Result<HashMap<String, DtbBlocks>> {
+    const DTB_VERSION: u32 = 17;
+    const DTB_COMPAT_VERSION: u32 = 16;
     let mut file = File::open(path)?;
     let mut header_bytes = [0u8; 40];
     let mut blocks = HashMap::new();
+
     // Read the first 40 bytes for the DTB header
     file.read_exact(&mut header_bytes)?;
     let dtb_header = DtbHeader::from_bytes(&header_bytes)
         .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "Invalid DTB header"))?;
     blocks.insert("header".to_string(), DtbBlocks::Header(dtb_header.clone()));
+
+    // Check header version is expected value
+    if dtb_header.version != DTB_VERSION && dtb_header.last_comp_version != DTB_COMPAT_VERSION {
+        panic!("DTB header version is not an excepted value.");
+    }
+
     // Read the reserve entries if they exist
     let mut reserve_entry_bytes = [0u8; 16];
     let mut reserve_entries = HashMap::new();
@@ -102,10 +111,12 @@ fn parse_dtb_header<P: AsRef<Path>>(path: P) -> io::Result<HashMap<String, DtbBl
             break; // End of reserve entries addr and size are both zero
         }
     }
-    // blocks.insert("reserved_entries".to_string(), DtbBlocks::ReserveEntries(reserve_entries));
+
+    // Add reserved entries to blocks; one entry with only zeros means no reserved memory.
     if !reserve_entries.is_empty() {
         blocks.insert("reserve_entries".to_string(), DtbBlocks::ReserveEntries(reserve_entries));
     }
+
     Ok(blocks)
 }
 
