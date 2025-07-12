@@ -8,6 +8,7 @@ pub fn dtb_magic() -> Vec<Vec<u8>> {
     vec![b"\xd0\x0d\xfe\xed".to_vec()]
 }
 
+#[allow(dead_code)]  // Will remove directive once the function is used
 fn dtb_aligned(size: usize) -> usize {
     const DTB_ALIGN: usize = 4;
     let rem = size % DTB_ALIGN;
