@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::fs::File;
-use std::io::{self, Read};
+use std::io::{self, Read, Seek};
 use std::path::Path;
 
 // Magic bytes
@@ -9,7 +9,7 @@ pub fn dtb_magic() -> Vec<Vec<u8>> {
 }
 
 // Device Tree Blob (DTB) header struct
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct DtbHeader {
     pub magic: u32,
     pub totalsize: u32,
@@ -76,21 +76,25 @@ fn parse_dtb_header<P: AsRef<Path>>(path: P) -> io::Result<HashMap<String, DtbBl
     let mut header_bytes = [0u8; 40];
     file.read_exact(&mut header_bytes)?;
     let dtb_header = DtbHeader::from_bytes(&header_bytes)
-        .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "Invalid DTB header"));
+        .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "Invalid DTB header"))?;
     let mut blocks = HashMap::new();
-    blocks.insert("header".to_string(), DtbBlocks::Header(dtb_header.unwrap()));
+    blocks.insert("header".to_string(), DtbBlocks::Header(dtb_header.clone()));
     let mut reserve_entry_bytes = [0u8; 16];
     let mut reserve_entries = HashMap::new();
+    file.seek(io::SeekFrom::Start(dtb_header.off_mem_rsvmap as u64))?;
     file.read_exact(&mut reserve_entry_bytes).unwrap();
     while let Some(entry) = DtbReserveEntry::from_bytes(&reserve_entry_bytes) {
         reserve_entries.insert(format!("{:x}", entry.addr), entry.size);
         if file.read_exact(&mut reserve_entry_bytes).is_err() {
             break;
+        } else if reserve_entry_bytes.iter().all(|&b| b == 0) {
+            break; // End of reserve entries addr and size are both zero
         }
     }
-    if !reserve_entries.is_empty() {
-        blocks.insert("reserve_entries".to_string(), DtbBlocks::ReserveEntries(reserve_entries));
-    }
+    blocks.insert(String::from("reserved_entries"), DtbBlocks::ReserveEntries(reserve_entries)).expect("msgic: Failed to insert reserve entries into blocks");
+    // if !reserve_entries.is_empty() {
+    //     blocks.insert("reserve_entries".to_string(), DtbBlocks::ReserveEntries(reserve_entries));
+    // }
     Ok(blocks)
 }
 
