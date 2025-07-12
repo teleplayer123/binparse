@@ -67,7 +67,7 @@ impl DtbReserveEntry {
 
 enum DtbBlocks {
     Header(DtbHeader),
-    ReserveEntries(Vec<DtbReserveEntry>),
+    ReserveEntries(HashMap<String, u64>),
 }
 
 // Reads a DTB file and parses its header.
@@ -80,10 +80,10 @@ fn parse_dtb_header<P: AsRef<Path>>(path: P) -> io::Result<HashMap<String, DtbBl
     let mut blocks = HashMap::new();
     blocks.insert("header".to_string(), DtbBlocks::Header(dtb_header.unwrap()));
     let mut reserve_entry_bytes = [0u8; 16];
-    let mut reserve_entries = Vec::new();
+    let mut reserve_entries = HashMap::new();
     file.read_exact(&mut reserve_entry_bytes).unwrap();
     while let Some(entry) = DtbReserveEntry::from_bytes(&reserve_entry_bytes) {
-        reserve_entries.push(entry);
+        reserve_entries.insert(format!("{:x}", entry.addr), entry.size);
         if file.read_exact(&mut reserve_entry_bytes).is_err() {
             break;
         }
@@ -107,5 +107,17 @@ pub fn parse_dtb_file<P: AsRef<Path>>(path: P) -> io::Result<()> {
         dbg!("Invalid DTB magic");
     }
     // let mut output_file = fs::File::create(outfile)?;
-    Ok(())
+    Ok(header.iter().for_each(|(_key, block)| {
+        match block {
+            DtbBlocks::Header(header) => {
+                println!("DTB Header: {:?}", header);
+            }
+            DtbBlocks::ReserveEntries(entries) => {
+                println!("Reserve Entries:");
+                for (addr, size) in entries {
+                    println!("  Address: {}, Size: {}", addr, size);
+                }
+            }
+        }
+    }))
 }
