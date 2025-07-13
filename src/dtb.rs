@@ -81,6 +81,19 @@ enum DtbBlocks {
     ReserveEntries(HashMap<String, u64>),
 }
 
+struct FdtProperty {
+    len: u32,
+    nameoff: u32,
+}
+
+enum FdtToken {
+    FdtBeginNode = 0x00000001,
+    FdtEndNode = 0x00000002,
+    FdtProp = 0x00000003,
+    FdtNop = 0x00000004,
+    FdtEnd = 0x00000009,
+}
+
 // Reads a DTB file and parses its header.
 fn parse_dtb_header<P: AsRef<Path>>(path: P) -> io::Result<HashMap<String, DtbBlocks>> {
     const DTB_VERSION: u32 = 17;
