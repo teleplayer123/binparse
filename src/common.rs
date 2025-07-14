@@ -14,7 +14,7 @@ pub fn crc32(data: &[u8]) -> u32 {
     !crc
 }
 
-pub fn xor_encode(data: &mut Vec<u8>, key: u8) -> Vec<u8> {
+pub fn xor_encode_bytes(data: &mut Vec<u8>, key: u8) -> Vec<u8> {
     let mut encoded_data = Vec::new();
     for byte in data.iter_mut() {
         *byte ^= key;
