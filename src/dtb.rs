@@ -1,6 +1,4 @@
 use std::collections::HashMap;
-use std::f32::consts::E;
-use std::fmt::Error;
 use std::fs::File;
 use std::io::{self, Read, Seek};
 use std::path::Path;
@@ -22,7 +20,7 @@ fn dtb_aligned(size: usize) -> usize {
 }
 
 // Device Tree Blob (DTB) header struct
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct DtbHeader {
     pub magic: u32,
     pub totalsize: u32,
@@ -84,11 +82,12 @@ enum DtbBlocks {
     ReserveEntries(HashMap<String, u64>),
 }
 
+#[allow(dead_code)]  // Will remove directive once the function is used
 struct FdtProperty {
     len: u32,
     nameoff: u32,
 }
-
+#[allow(dead_code)]  // Will remove directive once the function is used
 enum FdtToken {
     FdtBeginNode = 0x00000001,
     FdtEndNode = 0x00000002,
