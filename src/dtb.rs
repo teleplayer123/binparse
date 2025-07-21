@@ -1,4 +1,6 @@
 use std::collections::HashMap;
+use std::f32::consts::E;
+use std::fmt::Error;
 use std::fs::File;
 use std::io::{self, Read, Seek};
 use std::path::Path;
@@ -79,6 +81,7 @@ impl DtbReserveEntry {
 enum DtbBlocks {
     Header(DtbHeader),
     ReserveEntries(HashMap<String, u64>),
+    Err(io::Error),
 }
 
 struct FdtProperty {
@@ -160,6 +163,9 @@ pub fn parse_dtb_file<P: AsRef<Path>>(path: P) -> io::Result<()> {
                 for (addr, size) in entries {
                     println!("  Address: {}, Size: {}", addr, size);
                 }
+            }
+            DtbBlocks::Err(e) => {
+                eprintln!("Error reading DTB file: {}", e);
             }
         }
     }))
