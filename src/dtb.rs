@@ -76,39 +76,23 @@ impl DtbReserveEntry {
     }
 }
 
-const BEGIN_NODE: u32 = 0x00000001;
-const END_NODE: u32 = 0x00000002;
-const PROP: u32 = 0x00000003;
-const NOP: u32 = 0x00000004;
-const END: u32 = 0x00000009;
+// const BEGIN_NODE: u32 = 0x00000001;
+// const END_NODE: u32 = 0x00000002;
+// const PROP: u32 = 0x00000003;
+// const NOP: u32 = 0x00000004;
+// const END: u32 = 0x00000009;
 
-#[derive(Debug, Clone, PartialEq)]
-struct FdtProperty {
-    len: u32,
-    nameoff: u32,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-struct DtbNode {
-    name: String,
-    property: Vec<FdtProperty>,
-}
-
-impl DtbNode {
-    pub fn from_bytes(bytes: &[u8]) -> Option<Self> {
-        // Placeholder for parsing logic
-        None
-    }
-}
+// #[derive(Debug, Clone, PartialEq)]
+// struct FdtProperty {
+//     len: u32,
+//     nameoff: u32,
+// }
 
 #[derive(Debug, PartialEq)]
 enum DtbBlocks {
     Header(DtbHeader),
     ReserveEntries(HashMap<String, u64>),
-    Nodes(Vec<DtbNode>),
 }
-
-
 
 // Reads a DTB file and parses its header.
 fn parse_dtb_header<P: AsRef<Path>>(path: P) -> io::Result<HashMap<String, DtbBlocks>> {
@@ -117,7 +101,6 @@ fn parse_dtb_header<P: AsRef<Path>>(path: P) -> io::Result<HashMap<String, DtbBl
     let mut file = File::open(path)?;
     let mut header_bytes = [0u8; 40];
     let mut blocks = HashMap::new();
-    let mut nodes: HashMap<String, Vec<FdtProperty>> = HashMap::new();
 
     // Read the first 40 bytes for the DTB header
     file.read_exact(&mut header_bytes)?;
@@ -156,8 +139,6 @@ fn parse_dtb_header<P: AsRef<Path>>(path: P) -> io::Result<HashMap<String, DtbBl
     Ok(blocks)
 }
 
-
-
 // Validates and parses a DTB file, returning its header if valid.
 pub fn parse_dtb_file<P: AsRef<Path>>(path: P) -> io::Result<()> {
     let header = parse_dtb_header(path)
@@ -181,12 +162,6 @@ pub fn parse_dtb_file<P: AsRef<Path>>(path: P) -> io::Result<()> {
                 println!("Reserve Entries:");
                 for (addr, size) in entries {
                     println!("  Address: {}, Size: {}", addr, size);
-                }
-            }
-            DtbBlocks::Nodes(nodes) => {
-                println!("DTB Nodes:");
-                for node in nodes {
-                    println!("  Node: {:?}", node);
                 }
             }
         }
