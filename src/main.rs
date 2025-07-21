@@ -49,8 +49,8 @@ fn main() -> io::Result<()> {
         Ok(())
     } else if mode == "dtb" {
         match dtb::parse_dtb_file(&filename) {
-            Ok(header) => {
-                println!("Successfully parsed DTB file '{}'. Header: {:?}", filename, header);
+            Ok(()) => {
+                println!("Successfully parsed DTB file '{}'", filename);
             }
             Err(e) => {
                 eprint!("Error processing DTB file: {}", e);

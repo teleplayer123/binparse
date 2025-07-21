@@ -76,24 +76,36 @@ impl DtbReserveEntry {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
+struct DtbNode {
+    name: String,
+    properties: Vec<FdtProperty>,
+}
+
+impl DtbNode {
+    const BEGIN_NODE: u32 = 0x00000001;
+    const END_NODE: u32 = 0x00000002;
+    const PROP: u32 = 0x00000003;
+    const NOP: u32 = 0x00000004;
+    const END: u32 = 0x00000009;
+
+    pub fn from_bytes(bytes: &[u8]) -> Option<Self> {
+        // Placeholder for parsing logic
+        None
+    }
+}
+
+#[derive(Debug, PartialEq)]
 enum DtbBlocks {
     Header(DtbHeader),
     ReserveEntries(HashMap<String, u64>),
+    Node(Vec<DtbNode>),
 }
 
-#[allow(dead_code)]  // Will remove directive once the function is used
+#[derive(Debug, Clone, PartialEq)]
 struct FdtProperty {
     len: u32,
     nameoff: u32,
-}
-#[allow(dead_code)]  // Will remove directive once the function is used
-enum FdtToken {
-    FdtBeginNode = 0x00000001,
-    FdtEndNode = 0x00000002,
-    FdtProp = 0x00000003,
-    FdtNop = 0x00000004,
-    FdtEnd = 0x00000009,
 }
 
 // Reads a DTB file and parses its header.
@@ -103,6 +115,7 @@ fn parse_dtb_header<P: AsRef<Path>>(path: P) -> io::Result<HashMap<String, DtbBl
     let mut file = File::open(path)?;
     let mut header_bytes = [0u8; 40];
     let mut blocks = HashMap::new();
+    let mut nodes: HashMap<String, Vec<FdtProperty>> = HashMap::new();
 
     // Read the first 40 bytes for the DTB header
     file.read_exact(&mut header_bytes)?;
@@ -127,17 +140,21 @@ fn parse_dtb_header<P: AsRef<Path>>(path: P) -> io::Result<HashMap<String, DtbBl
             break; // End of reserve entries addr and size are both zero
         }
     }
-
     // Add reserved entries to blocks
     if !reserve_entries.is_empty() {
         blocks.insert("reserve_entries".to_string(), DtbBlocks::ReserveEntries(reserve_entries));
     }
 
-    // Parse the device tree structure into nodes
+    // Parse device tree property nodes
+    file.seek(io::SeekFrom::Start(dtb_header.off_dt_struct as u64))?;
+    let mut struct_blocks = vec![0u8; dtb_aligned(dtb_header.size_dt_struct as usize)];
+    file.read_exact(&mut struct_blocks)?;
 
 
     Ok(blocks)
 }
+
+
 
 // Validates and parses a DTB file, returning its header if valid.
 pub fn parse_dtb_file<P: AsRef<Path>>(path: P) -> io::Result<()> {
@@ -151,8 +168,9 @@ pub fn parse_dtb_file<P: AsRef<Path>>(path: P) -> io::Result<()> {
     if !magic_valid {
         dbg!("Invalid DTB magic");
     }
-    // let mut output_file = fs::File::create(outfile)?;
-    Ok(header.iter().for_each(|(_key, block)| {
+    //let mut output_file = fs::File::create(outfile)?;
+    // Print the header and reserve entries
+    header.iter().for_each(|(_key, block)| {
         match block {
             DtbBlocks::Header(header) => {
                 println!("DTB Header: {:?}", header);
@@ -163,6 +181,13 @@ pub fn parse_dtb_file<P: AsRef<Path>>(path: P) -> io::Result<()> {
                     println!("  Address: {}, Size: {}", addr, size);
                 }
             }
+            DtbBlocks::Node(nodes) => {
+                println!("DTB Nodes:");
+                for node in nodes {
+                    println!("  Node: {:?}", node);
+                }
+            }
         }
-    }))
+    });
+    Ok(())
 }
