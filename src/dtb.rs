@@ -76,19 +76,25 @@ impl DtbReserveEntry {
     }
 }
 
+const BEGIN_NODE: u32 = 0x00000001;
+const END_NODE: u32 = 0x00000002;
+const PROP: u32 = 0x00000003;
+const NOP: u32 = 0x00000004;
+const END: u32 = 0x00000009;
+
+#[derive(Debug, Clone, PartialEq)]
+struct FdtProperty {
+    len: u32,
+    nameoff: u32,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 struct DtbNode {
     name: String,
-    properties: Vec<FdtProperty>,
+    property: Vec<FdtProperty>,
 }
 
 impl DtbNode {
-    const BEGIN_NODE: u32 = 0x00000001;
-    const END_NODE: u32 = 0x00000002;
-    const PROP: u32 = 0x00000003;
-    const NOP: u32 = 0x00000004;
-    const END: u32 = 0x00000009;
-
     pub fn from_bytes(bytes: &[u8]) -> Option<Self> {
         // Placeholder for parsing logic
         None
@@ -99,14 +105,10 @@ impl DtbNode {
 enum DtbBlocks {
     Header(DtbHeader),
     ReserveEntries(HashMap<String, u64>),
-    Node(Vec<DtbNode>),
+    Nodes(Vec<DtbNode>),
 }
 
-#[derive(Debug, Clone, PartialEq)]
-struct FdtProperty {
-    len: u32,
-    nameoff: u32,
-}
+
 
 // Reads a DTB file and parses its header.
 fn parse_dtb_header<P: AsRef<Path>>(path: P) -> io::Result<HashMap<String, DtbBlocks>> {
@@ -181,7 +183,7 @@ pub fn parse_dtb_file<P: AsRef<Path>>(path: P) -> io::Result<()> {
                     println!("  Address: {}, Size: {}", addr, size);
                 }
             }
-            DtbBlocks::Node(nodes) => {
+            DtbBlocks::Nodes(nodes) => {
                 println!("DTB Nodes:");
                 for node in nodes {
                     println!("  Node: {:?}", node);
