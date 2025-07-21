@@ -78,10 +78,10 @@ impl DtbReserveEntry {
     }
 }
 
+#[derive(Debug)]
 enum DtbBlocks {
     Header(DtbHeader),
     ReserveEntries(HashMap<String, u64>),
-    Err(io::Error),
 }
 
 struct FdtProperty {
@@ -163,9 +163,6 @@ pub fn parse_dtb_file<P: AsRef<Path>>(path: P) -> io::Result<()> {
                 for (addr, size) in entries {
                     println!("  Address: {}, Size: {}", addr, size);
                 }
-            }
-            DtbBlocks::Err(e) => {
-                eprintln!("Error reading DTB file: {}", e);
             }
         }
     }))
