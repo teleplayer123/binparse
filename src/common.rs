@@ -22,3 +22,21 @@ pub fn xor_encode_bytes(data: &mut Vec<u8>, key: u8) -> Vec<u8> {
     }
     encoded_data
 }
+
+pub fn align_u32(len: usize) -> usize {
+    const ALIGNMENT: usize = 4;
+    let rem = len % ALIGNMENT;
+    if rem == 0 {
+        len
+    } else {
+        len + (ALIGNMENT - rem)
+    }
+}
+
+pub fn oddparity(val: u8) -> u8 {
+    let mut v = val;
+    v = (v ^ (v >> 4)) & 0x0f;
+    v = (v ^ (v >> 2)) & 0x03;
+    v = (v ^ (v >> 1)) & 0x01;
+    v
+}
