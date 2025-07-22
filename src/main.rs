@@ -4,8 +4,6 @@ use std::io;
 mod srec;
 mod uboot;
 mod ihex;
-mod dtb;
-
 
 fn main() -> io::Result<()> {
     let args: Vec<String> = env::args().collect();
@@ -47,16 +45,6 @@ fn main() -> io::Result<()> {
             }
         }
         Ok(())
-    } else if mode == "dtb" {
-        match dtb::parse_dtb_file(&filename) {
-            Ok(()) => {
-                println!("Successfully parsed DTB file '{}'", filename);
-            }
-            Err(e) => {
-                eprint!("Error processing DTB file: {}", e);
-            }
-        }
-        Ok(())
     } else {
         eprintln!("Unsupported mode: {}", mode);
         Ok(())
@@ -72,7 +60,7 @@ struct CliArgs {
 impl CliArgs {
     fn new(args: &[String]) -> CliArgs {
         if args.len() < 3 || args.len() > 4 {
-            panic!("Usage: {} <mode> <input_file> [output_file]\nmodes: [uboot|srec|ihex|dtb]", args[0]);
+            panic!("Usage: {} <mode> <input_file> [output_file]\nmodes: [uboot|srec|ihex]", args[0]);
         }
         let mode = args[1].clone();
         let infile = args[2].clone();
@@ -81,8 +69,8 @@ impl CliArgs {
         } else {
             None
         };
-        if mode != "uboot" && mode != "srec" && mode != "ihex" && mode != "dtb" {
-            panic!("Invalid mode: {}. Options: [uboot|srec|ihex|dtb]", mode);
+        if mode != "uboot" && mode != "srec" && mode != "ihex" {
+            panic!("Invalid mode: {}. Options: [uboot|srec|ihex]", mode);
         }
 
         CliArgs { mode, infile, outfile }
