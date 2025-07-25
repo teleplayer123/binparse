@@ -1,6 +1,7 @@
 use std::env;
 use std::io;
 
+mod utils;
 mod srec;
 mod uboot;
 mod ihex;
@@ -45,6 +46,32 @@ fn main() -> io::Result<()> {
             }
         }
         Ok(())
+    } else if mode == "crc32" {
+        let data = std::fs::read(&filename)?;
+        let crc = utils::utils::crc32(&data);
+        println!("CRC32 of file '{}': {:08x}", filename, crc);
+        Ok(())
+    } else if mode == "oddparity" {
+        let data = std::fs::read(&filename)?;
+        for byte in data {
+            let parity = utils::utils::oddparity(byte);
+            println!("Odd parity for byte {:02x}: {:02x}", byte, parity);
+        }
+        Ok(())
+    } else if mode == "xorencode" {
+        let key: u8 = match cli_args.xorkey {
+            Some(ref key_str) => key_str.parse().expect("Invalid XOR key, must be a byte (0-255)"),
+            None => {
+                eprintln!("XOR key is required for xorencode mode");
+                return Ok(());
+            }
+        };
+        let mut data = std::fs::read(&filename)?;
+        let encoded_data = utils::utils::xor_encode_bytes(&mut data, key);
+        std::fs::write(&outfile, encoded_data)?;
+        println!("XOR encoded data written to '{}'", &outfile);
+        Ok(())
+        
     } else {
         eprintln!("Unsupported mode: {}", mode);
         Ok(())
@@ -55,24 +82,30 @@ struct CliArgs {
     mode: String,
     infile: String,
     outfile: Option<String>,
+    xorkey: Option<String>,
 }
 
 impl CliArgs {
     fn new(args: &[String]) -> CliArgs {
-        if args.len() < 3 || args.len() > 4 {
-            panic!("Usage: {} <mode> <input_file> [output_file]\nmodes: [uboot|srec|ihex]", args[0]);
+        if args.len() < 3 || args.len() > 5 {
+            panic!("Usage: {} <mode> <input_file> [output_file] [xorkey]\nmodes: [uboot|srec|ihex|crc32|oddparity|xorencode]", args[0]);
         }
         let mode = args[1].clone();
         let infile = args[2].clone();
-        let outfile = if args.len() == 4 {
+        let outfile = if args.len() >= 4 {
             Some(args[3].clone())
         } else {
             None
         };
-        if mode != "uboot" && mode != "srec" && mode != "ihex" {
-            panic!("Invalid mode: {}. Options: [uboot|srec|ihex]", mode);
+        let xorkey = if args.len() == 5 {
+            Some(args[4].clone())
+        } else {
+            None
+        };
+        if mode != "uboot" && mode != "srec" && mode != "ihex" && mode != "crc32" && mode != "oddparity" && mode != "xorencode" {
+            panic!("Invalid mode: {}. Options: [uboot|srec|ihex|crc32|oddparity|xorencode]", mode);
         }
 
-        CliArgs { mode, infile, outfile }
+        CliArgs { mode, infile, outfile, xorkey}
     }
 }
