@@ -68,7 +68,7 @@ pub fn parse_ihex_file(file_path: &str, outfile: &str) -> io::Result<()> {
             if address > curr_address {
                 let padding = vec![0u8; (address - curr_address) as usize];
                 output_file.write_all(&padding)?;
-            }
+            }                
             output_file.write_all(&record.data)?;
             curr_address = address + record.length as u16;
         } else if record.record_type == 1 {
