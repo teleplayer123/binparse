@@ -1,5 +1,6 @@
 use std::fs;
-use std::io::{self, BufRead, Write};
+use std::fs::File;
+use std::io::{self, BufRead, Write, Seek, SeekFrom};
 
 // Parse intel hex file
 
@@ -45,11 +46,32 @@ impl IHexRecord {
     }
 }
 
+fn write_records_to_file(records: &[IHexRecord], outfile: &str) -> io::Result<()> {
+    let mut file = File::create(outfile)?;
+    let mut last_end: u64 = 0;
+
+    for record in records {
+        println!("Length: 0x{:x}, Address: 0x{:x}, Type: 0x{:x}, Checksum: 0x{:x}", &record.length, &record.address, &record.record_type, &record.checksum);
+        if record.record_type != 0 {
+            continue; // Only write data records
+        }
+        let address = record.address as u64;
+        if address > last_end {
+            // Pad with zeros
+            let gap = address - last_end;
+            file.write_all(&vec![0u8; gap as usize])?;
+        }
+        file.seek(SeekFrom::Start(address))?;
+        file.write_all(&record.data)?;
+        last_end = address + record.data.len() as u64;
+    }
+    Ok(())
+}
+
 pub fn parse_ihex_file(file_path: &str, outfile: &str) -> io::Result<()> {
     let file = fs::File::open(file_path)?;
     let reader = io::BufReader::new(file);
     let mut records = Vec::new();
-    let mut curr_address: u16 = 0;
 
     for line in reader.lines() {
         let line = line?;
@@ -60,22 +82,7 @@ pub fn parse_ihex_file(file_path: &str, outfile: &str) -> io::Result<()> {
             .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
         records.push(record);
     }
-    let mut output_file = fs::File::create(outfile)?;
-    for record in &records {
-        println!("Length: 0x{:x}, Address: 0x{:x}, Type: 0x{:x}, Checksum: 0x{:x}", &record.length, &record.address, &record.record_type, &record.checksum);
-        let address = record.address;
-        if record.record_type == 0 {
-            if address > curr_address {
-                let padding = vec![0u8; (address - curr_address) as usize];
-                output_file.write_all(&padding)?;
-            }                
-            output_file.write_all(&record.data)?;
-            curr_address = address + record.length as u16;
-        } else if record.record_type == 1 {
-            println!("End of file record encountered.");
-            break; // End of file record
-        }
-    }
+    write_records_to_file(&records, outfile)?;
 
     Ok(())
 }
