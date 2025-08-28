@@ -1,6 +1,6 @@
 use std::fs;
 use std::fs::File;
-use std::io::{self, BufRead, Write, Seek, SeekFrom};
+use std::io::{self, BufRead, Write};
 
 // Parse intel hex file
 
@@ -61,9 +61,8 @@ fn write_records_to_file(records: &[IHexRecord], outfile: &str) -> io::Result<()
             let gap = address - last_end;
             file.write_all(&vec![0u8; gap as usize])?;
         }
-        file.seek(SeekFrom::Start(address))?;
         file.write_all(&record.data)?;
-        last_end = address + record.data.len() as u64;
+        last_end = address + record.length as u64;
     }
     Ok(())
 }
