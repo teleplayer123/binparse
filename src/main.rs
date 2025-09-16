@@ -58,11 +58,11 @@ fn main() -> io::Result<()> {
             println!("Odd parity for byte {:02x}: {:02x}", byte, parity);
         }
         Ok(())
-    } else if mode == "xorencode" {
+    } else if mode == "xor" {
         let key: u8 = match cli_args.xorkey {
             Some(ref key_str) => key_str.parse().expect("Invalid XOR key, must be a byte (0-255)"),
             None => {
-                eprintln!("XOR key is required for xorencode mode");
+                eprintln!("XOR key is required for xor mode");
                 return Ok(());
             }
         };
@@ -88,7 +88,7 @@ struct CliArgs {
 impl CliArgs {
     fn new(args: &[String]) -> CliArgs {
         if args.len() < 3 || args.len() > 5 {
-            panic!("Usage: {} <mode> <input_file> [output_file] [xorkey]\nmodes: [uboot|srec|ihex|crc32|oddparity|xorencode]", args[0]);
+            panic!("Usage: {} <mode> <input_file> [output_file] [xorkey]\nmodes: [uboot|srec|ihex|crc32|oddparity|xor]", args[0]);
         }
         let mode = args[1].clone();
         let infile = args[2].clone();
@@ -102,8 +102,8 @@ impl CliArgs {
         } else {
             None
         };
-        if mode != "uboot" && mode != "srec" && mode != "ihex" && mode != "crc32" && mode != "oddparity" && mode != "xorencode" {
-            panic!("Invalid mode: {}. Options: [uboot|srec|ihex|crc32|oddparity|xorencode]", mode);
+        if mode != "uboot" && mode != "srec" && mode != "ihex" && mode != "crc32" && mode != "oddparity" && mode != "xor" {
+            panic!("Invalid mode: {}. Options: [uboot|srec|ihex|crc32|oddparity|xor]", mode);
         }
 
         CliArgs { mode, infile, outfile, xorkey}
