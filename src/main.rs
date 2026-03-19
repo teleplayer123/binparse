@@ -10,6 +10,7 @@ use ratatui::{
     style::{Color, Style},
     text::{Line, Span},
     widgets::{Block, Borders, List, ListItem, Paragraph},
+    prelude::Alignment,
     Frame, Terminal,
 };
 use std::fs::File;
@@ -96,6 +97,14 @@ fn render_hexdump(f: &mut Frame, area: Rect, app: &AppState) {
 #[derive(Parser)]
 struct Args { path: PathBuf }
 
+const BANNER: &str = r#"
+██████╗ ██╗███╗   ██╗██████╗  █████╗ ██████╗ ███████╗███████╗
+██╔══██╗██║████╗  ██║██╔══██╗██╔══██╗██╔══██╗██╔════╝██╔════╝
+██████╔╝██║██╔██╗ ██║██████╔╝███████║██████╔╝███████╗█████╗  
+██╔══██╗██║██║╚██╗██║██╔═══╝ ██╔══██║██╔══██╗╚════██║██╔══╝  
+██████╔╝██║██║ ╚████║██║     ██║  ██║██║  ██║███████║███████╗
+╚═════╝ ╚═╝╚═╝  ╚═══╝╚═╝     ╚═╝  ╚═╝╚═╝  ╚═╝╚══════╝╚══════╝"#;
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Args::parse();
     let data = DataFile::from_gguf(&args.path)?;
@@ -110,15 +119,29 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         terminal.draw(|f| {
             let main_layout = Layout::default()
                 .direction(Direction::Vertical)
-                .constraints([Constraint::Length(3), Constraint::Min(0)])
+                .constraints([
+                    Constraint::Length(10),
+                    Constraint::Length(3),
+                    Constraint::Min(0),
+                ])
                 .split(f.size());
 
-            let help = "[Q]uit | [H]exdump | [M]ain Dashboard | [Up/Down] Scroll Hex";
-            f.render_widget(Paragraph::new(help).block(Block::default().borders(Borders::ALL)), main_layout[0]);
+            // Banner
+            let banner = Paragraph::new(BANNER)
+                .block(Block::default().borders(Borders::ALL))
+                .alignment(Alignment::Center);
+            f.render_widget(banner, main_layout[0]);
 
+            // Help bar
+            let help = "[Q]uit | [H]exdump | [M]ain Dashboard | [Up/Down] Scroll Hex";
+            let help_widget = Paragraph::new(help)
+                .block(Block::default().borders(Borders::ALL).title("Help"));
+            f.render_widget(help_widget, main_layout[1]);
+
+            // Main content
             match app.view {
-                View::Dashboard => render_dashboard(f, main_layout[1], &data),
-                View::Hexdump => render_hexdump(f, main_layout[1], &app),
+                View::Dashboard => render_dashboard(f, main_layout[2], &data),
+                View::Hexdump => render_hexdump(f, main_layout[2], &app),
             }
         })?;
 
