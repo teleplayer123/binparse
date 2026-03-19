@@ -5,7 +5,7 @@ use std::path::PathBuf;
 
 #[derive(Debug, Clone)]
 pub enum GgufValue {
-    Uint32(u32), Int32(i32), Float32(f32), Bool(bool), Uint64(u64), Int64(i64), Float64(f64), String(String), StringList(Vec<String>), Unsupported(u32),
+    Uint32(u32), Int32(i32), Float32(f32), Bool(bool), Uint64(u64), Int64(i64), Int16(i16), Uint16(u16), Int8(i8), Uint8(u8), Float64(f64), String(String), StringList(Vec<String>), Unsupported(u32),
 }
 
 pub struct MetadataEntry { pub key: String, pub value: GgufValue }
