@@ -128,6 +128,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             // Banner
             let banner = Paragraph::new(BANNER)
+                .style(Style::default().fg(Color::Blue))
                 .block(Block::default().borders(Borders::ALL))
                 .alignment(Alignment::Center);
             f.render_widget(banner, main_layout[0]);
@@ -135,6 +136,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             // Help bar
             let help = "[Q]uit | [H]exdump | [M]ain Dashboard | [Up/Down] Scroll Hex";
             let help_widget = Paragraph::new(help)
+                .style(Style::default().fg(Color::Cyan))
                 .block(Block::default().borders(Borders::ALL).title("Help"));
             f.render_widget(help_widget, main_layout[1]);
 
