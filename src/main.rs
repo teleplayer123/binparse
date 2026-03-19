@@ -32,6 +32,23 @@ struct AppState {
     file_path: PathBuf,
 }
 
+pub struct DataFile {
+    pub version: u32,
+    pub tensor_count: u64,
+    pub metadata_kv_count: u32,
+}
+
+impl DataFile {
+    pub fn from_gguf(path: &PathBuf) -> io::Result<Self> {
+        let gguf_file = gguf::GgufFile::parse(path)?;
+        Ok(DataFile {
+            version: gguf_file.version,
+            tensor_count: gguf_file.tensor_count,
+            metadata_kv_count: gguf_file.metadata_kv_count,
+        })
+    }
+}
+
 // --- Hexdump Helper ---
 
 fn get_hexdump(path: &PathBuf, offset: u64, lines: u16) -> Vec<Line<'_>> {
@@ -55,7 +72,7 @@ fn get_hexdump(path: &PathBuf, offset: u64, lines: u16) -> Vec<Line<'_>> {
 
 // --- UI Logic ---
 
-fn render_dashboard(f: &mut Frame, area: Rect, data: &gguf::GgufFile) {
+fn render_dashboard(f: &mut Frame, area: Rect, data: &DataFile) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([Constraint::Length(6), Constraint::Min(0)])
@@ -81,7 +98,7 @@ struct Args { path: PathBuf }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Args::parse();
-    let data = gguf::GgufFile::parse(&args.path)?;
+    let data = DataFile::from_gguf(&args.path)?;
     let mut app = AppState { view: View::Dashboard, hex_offset: 0, file_path: args.path };
 
     enable_raw_mode()?;
