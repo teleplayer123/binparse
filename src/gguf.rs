@@ -12,6 +12,7 @@ pub struct MetadataEntry { pub key: String, pub value: GgufValue }
 pub struct GgufTensor { pub name: String, pub dimensions: Vec<u64>, pub tensor_type: u32, pub offset: u64 }
 
 pub struct GgufFile {
+    pub magic: u32,
     pub version: u32,
     pub tensor_count: u64,
     pub metadata_kv_count: u32,
@@ -36,6 +37,7 @@ impl GgufFile {
         let _reserved = reader.read_u32::<LittleEndian>()?;
 
         Ok(GgufFile {
+            magic,
             version,
             tensor_count,
             metadata_kv_count,

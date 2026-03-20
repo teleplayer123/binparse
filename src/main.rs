@@ -33,19 +33,24 @@ struct AppState {
     file_path: PathBuf,
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct DataFile {
-    pub version: u32,
-    pub tensor_count: u64,
-    pub metadata_kv_count: u32,
+    pub magic: u32,
+    pub version: Option<u32>,
+    pub tensor_count: Option<u64>,
+    pub metadata_kv_count: Option<u32>,
+    pub data: Option<Vec<u8>>,
 }
 
 impl DataFile {
     pub fn from_gguf(path: &PathBuf) -> io::Result<Self> {
         let gguf_file = gguf::GgufFile::parse(path)?;
         Ok(DataFile {
-            version: gguf_file.version,
-            tensor_count: gguf_file.tensor_count,
-            metadata_kv_count: gguf_file.metadata_kv_count,
+            magic: gguf_file.magic,
+            version: Some(gguf_file.version),
+            tensor_count: Some(gguf_file.tensor_count),
+            metadata_kv_count: Some(gguf_file.metadata_kv_count),
+            data: None,
         })
     }
 }
@@ -79,12 +84,20 @@ fn render_dashboard(f: &mut Frame, area: Rect, data: &DataFile) {
         .constraints([Constraint::Length(6), Constraint::Min(0)])
         .split(area);
 
-    let rows = vec![
-        Line::from(vec![Span::raw(format!("GGUF version: {}", data.version))]),
-        Line::from(vec![Span::raw(format!("Tensor count: {}", data.tensor_count))]),
-        Line::from(vec![Span::raw(format!("Metadata KV count: {}", data.metadata_kv_count))]),
-        Line::from(vec![Span::raw("Press [H] to open hexdump view".to_string())]),
-    ];
+    let rows = if data.magic == 0x46554747 {
+        vec![
+            Line::from(vec![Span::raw(format!("Magic Number: 0x{:04x}", data.magic))]),
+            Line::from(vec![Span::raw(format!("GGUF version: {:?}", data.version.unwrap_or(0)))]),
+            Line::from(vec![Span::raw(format!("Tensor count: {:?}", data.tensor_count.unwrap_or(0)))]),
+            Line::from(vec![Span::raw(format!("Metadata KV count: {:?}", data.metadata_kv_count.unwrap_or(0)))]),
+            Line::from(vec![Span::raw("Press [H] to open hexdump view".to_string())]),
+        ]
+    } else {
+        vec![
+            Line::from(vec![Span::raw(format!("Magic Number: 0x{:04x}", data.magic))]),
+            Line::from(vec![Span::raw("Unknown file format".to_string())]),
+        ]
+    };
 
     f.render_widget(Paragraph::new(rows).block(Block::default().title(" Header ").borders(Borders::ALL)), chunks[0]);
 }
