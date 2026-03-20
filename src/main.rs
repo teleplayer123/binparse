@@ -18,6 +18,7 @@ use std::io::{self, BufReader, Read, Seek, SeekFrom};
 use std::path::PathBuf;
 
 mod gguf;
+mod elf;
 
 // --- Data Structures ---
 
@@ -51,6 +52,17 @@ impl DataFile {
             tensor_count: Some(gguf_file.tensor_count),
             metadata_kv_count: Some(gguf_file.metadata_kv_count),
             data: None,
+        })
+    }
+
+    pub fn from_elf(path: &PathBuf) -> io::Result<Self> {
+        let elf_file = elf::ElfFile::parse(path)?;
+        Ok(DataFile {
+            magic: elf_file.magic,
+            version: None,
+            tensor_count: None,
+            metadata_kv_count: None,
+            data: Some(elf_file.data),
         })
     }
 }
@@ -92,10 +104,17 @@ fn render_dashboard(f: &mut Frame, area: Rect, data: &DataFile) {
             Line::from(vec![Span::raw(format!("Metadata KV count: {:?}", data.metadata_kv_count.unwrap_or(0)))]),
             Line::from(vec![Span::raw("Press [H] to open hexdump view".to_string())]),
         ]
+    } else if data.magic == 0x7f454c46 {
+        vec![
+            Line::from(vec![Span::raw(format!("Magic Number: 0x{:04x}", data.magic))]),
+            Line::from(vec![Span::raw("ELF file detected".to_string())]),
+            Line::from(vec![Span::raw("Press [H] to open hexdump view".to_string())]),
+        ]
     } else {
         vec![
             Line::from(vec![Span::raw(format!("Magic Number: 0x{:04x}", data.magic))]),
             Line::from(vec![Span::raw("Unknown file format".to_string())]),
+            Line::from(vec![Span::raw("Press [H] to open hexdump view".to_string())]),
         ]
     };
 

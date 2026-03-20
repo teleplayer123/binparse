@@ -20,12 +20,14 @@ pub struct GgufFile {
     pub tensors: Vec<GgufTensor>,
 }
 
+const GGUF_MAGIC: u32 = 0x46554747; // 'G' 'G' 'U' 'F'
+
 impl GgufFile {
     pub fn parse(path: &PathBuf) -> io::Result<Self> {
         let file = File::open(path)?;
         let mut reader = BufReader::new(file);
         let magic = reader.read_u32::<LittleEndian>()?;
-        if magic != 0x46554747 {
+        if magic != GGUF_MAGIC {
             return Err(io::Error::new(io::ErrorKind::InvalidData, "Not GGUF"));
         }
 
