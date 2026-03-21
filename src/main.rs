@@ -44,6 +44,8 @@ pub struct DataFile {
 }
 
 impl DataFile {
+    // TODO: Check magic number to determine which parser to use
+
     pub fn from_gguf(path: &PathBuf) -> io::Result<Self> {
         let gguf_file = gguf::GgufFile::parse(path)?;
         Ok(DataFile {
