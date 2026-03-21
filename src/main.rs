@@ -9,12 +9,12 @@ use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, List, ListItem, Paragraph},
+    widgets::{Block, Borders, Paragraph},
     prelude::Alignment,
     Frame, Terminal,
 };
 use std::fs::File;
-use std::io::{self, BufReader, Read, Seek, SeekFrom};
+use std::io::{self, Read, Seek, SeekFrom};
 use std::path::PathBuf;
 
 mod gguf;
@@ -44,7 +44,16 @@ pub struct DataFile {
 }
 
 impl DataFile {
-    // TODO: Check magic number to determine which parser to use
+    pub fn from_file(path: &PathBuf) -> io::Result<Self> {
+        // Try GGUF first
+        if let Ok(gguf_file) = Self::from_gguf(path) {
+            return Ok(gguf_file);
+        } else if let Ok(elf_file) = Self::from_elf(path) {
+            return Ok(elf_file);
+        } else {
+            return Err(io::Error::new(io::ErrorKind::InvalidData, "Unsupported file format"));
+        }
+    }
 
     pub fn from_gguf(path: &PathBuf) -> io::Result<Self> {
         let gguf_file = gguf::GgufFile::parse(path)?;

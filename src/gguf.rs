@@ -1,6 +1,6 @@
 use byteorder::{LittleEndian, ReadBytesExt};
 use std::fs::File;
-use std::io::{self, BufReader, Read, Seek, SeekFrom};
+use std::io::{self, BufReader};
 use std::path::PathBuf;
 
 #[allow(dead_code)]

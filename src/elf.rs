@@ -1,5 +1,5 @@
 use std::fs::File;
-use std::io::{self, Read, Seek, SeekFrom};
+use std::io::{self, Read};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ElfFile {
@@ -33,13 +33,13 @@ impl ElfFile {
     }
 }
 
-pub fn from_elf(path: &std::path::PathBuf) -> io::Result<super::DataFile> {
-    let elf_file = ElfFile::parse(path)?;
-    Ok(super::DataFile {
-        magic: elf_file.magic,
-        version: None,
-        tensor_count: None,
-        metadata_kv_count: None,
-        data: Some(elf_file.data),
-    })
-}
+// pub fn from_elf(path: &std::path::PathBuf) -> io::Result<super::DataFile> {
+//     let elf_file = ElfFile::parse(path)?;
+//     Ok(super::DataFile {
+//         magic: elf_file.magic,
+//         version: None,
+//         tensor_count: None,
+//         metadata_kv_count: None,
+//         data: Some(elf_file.data),
+//     })
+// }
