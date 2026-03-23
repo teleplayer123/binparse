@@ -34,6 +34,8 @@ struct AppState {
     file_path: PathBuf,
 }
 
+// TODO: Make this an enum with variants for GGUF, ELF, MachO, etc. and store parsed data in each variant.
+//       Instead of multiple struct fields, data can be stored in one field with key value format requiring a parsing method for each file type.
 #[derive(Debug, Clone, PartialEq)]
 pub struct DataFile {
     pub magic: u32,
@@ -45,7 +47,7 @@ pub struct DataFile {
 
 impl DataFile {
     pub fn from_file(path: &PathBuf) -> io::Result<Self> {
-        // Try GGUF first
+        // Get correct file type
         if let Ok(gguf_file) = Self::from_gguf(path) {
             return Ok(gguf_file);
         } else if let Ok(elf_file) = Self::from_elf(path) {
