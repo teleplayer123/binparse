@@ -13,6 +13,7 @@ use ratatui::{
     prelude::Alignment,
     Frame, Terminal,
 };
+use regex::Regex;
 use std::fs::File;
 use std::io::{self, Read, Seek, SeekFrom};
 use std::path::PathBuf;
@@ -27,6 +28,7 @@ mod macho;
 enum View {
     Dashboard,
     Hexdump,
+    URLs,
 }
 
 struct AppState {
@@ -85,7 +87,16 @@ impl DataFile {
     }
 }
 
-// --- Hexdump Helper ---
+// --- Helpers ---
+
+fn get_urls_from_file(path: &PathBuf) -> Vec<String> {
+    let mut file = File::open(path).unwrap();
+    let mut buffer = Vec::new();
+    file.read_to_end(&mut buffer).unwrap();
+    let content = String::from_utf8_lossy(&buffer);
+    let url_regex = Regex::new(r"https?://[^\s]+").unwrap();
+    url_regex.find_iter(&content).map(|m| m.as_str().to_string()).collect()
+}
 
 fn get_hexdump(path: &PathBuf, offset: u64, lines: u16) -> Vec<Line<'_>> {
     let mut file = File::open(path).unwrap();
@@ -156,6 +167,12 @@ fn render_hexdump(f: &mut Frame, area: Rect, app: &AppState) {
     f.render_widget(Paragraph::new(lines).block(Block::default().title(" Hex Viewer ").borders(Borders::ALL)), area);
 }
 
+fn render_urls(f: &mut Frame, area: Rect, app: &AppState) {
+    let urls = get_urls_from_file(&app.file_path);
+    let lines: Vec<Line> = urls.into_iter().map(|url| Line::from(vec![Span::raw(url)])).collect();
+    f.render_widget(Paragraph::new(lines).block(Block::default().title(" URLs ").borders(Borders::ALL)), area);
+}
+
 #[derive(Parser)]
 struct Args { path: PathBuf }
 
@@ -196,7 +213,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             f.render_widget(banner, main_layout[0]);
 
             // Help bar
-            let help = "[Q]uit | [H]exdump | [M]ain Dashboard | [Up/Down] Scroll Hex";
+            let help = "[Q]uit | [H]exdump | [U]RLs | [M]ain Dashboard | [Up/Down] Scroll Hex";
             let help_widget = Paragraph::new(help)
                 .style(Style::default().fg(Color::Cyan))
                 .block(Block::default().borders(Borders::ALL).title("Help"));
@@ -206,6 +223,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             match app.view {
                 View::Dashboard => render_dashboard(f, main_layout[2], &data),
                 View::Hexdump => render_hexdump(f, main_layout[2], &app),
+                View::URLs => render_urls(f, main_layout[2], &app),
             }
         })?;
 
@@ -214,6 +232,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 match key.code {
                     KeyCode::Char('q') => break,
                     KeyCode::Char('h') => app.view = View::Hexdump,
+                    KeyCode::Char('u') => app.view = View::URLs,
                     KeyCode::Char('m') => app.view = View::Dashboard,
                     KeyCode::Down if app.view == View::Hexdump => app.hex_offset += 16,
                     KeyCode::Up if app.view == View::Hexdump && app.hex_offset >= 16 => app.hex_offset -= 16,
