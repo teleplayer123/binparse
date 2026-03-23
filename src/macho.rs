@@ -1,5 +1,3 @@
-use std::env;
-use std::fs::File;
 use std::io::{self, Read};
 use std::mem;
 
@@ -8,21 +6,21 @@ const MH_MAGIC_64: u32 = 0xfeedfacf; // Standard
 const MH_CIGAM_64: u32 = 0xcffafeed; // Byte-swapped (CIGAM is MAGIC backwards)
 
 #[repr(C)]
-#[derive(Debug, Default)]
-struct MachHeader64 {
-    magic: u32,
-    cputype: i32,
-    cpusubtype: i32,
-    filetype: u32,
-    ncmds: u32,
-    sizeofcmds: u32,
-    flags: u32,
-    reserved: u32,
+#[derive(Debug, Default, Clone, PartialEq)]
+pub struct MachHeader64 {
+    pub magic: u32,
+    pub cputype: i32,
+    pub cpusubtype: i32,
+    pub filetype: u32,
+    pub ncmds: u32,
+    pub sizeofcmds: u32,
+    pub flags: u32,
+    pub reserved: u32,
 }
 
 impl MachHeader64 {
-    /// Attempts to parse a MachHeader64 from a reader (like a File or Cursor).
-    fn from_reader<R: Read>(mut reader: R) -> io::Result<Self> {
+    /// Attempts to parse a MachHeader64 from a reader
+    pub fn from_reader<R: Read>(mut reader: R) -> io::Result<Self> {
         let mut buffer = [0u8; mem::size_of::<MachHeader64>()];
         reader.read_exact(&mut buffer)?;
 

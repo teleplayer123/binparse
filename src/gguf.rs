@@ -4,18 +4,21 @@ use std::io::{self, BufReader};
 use std::path::PathBuf;
 
 #[allow(dead_code)]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum GgufValue {
     Uint32(u32), Int32(i32), Float32(f32), Bool(bool), Uint64(u64), Int64(i64), Int16(i16), Uint16(u16), Int8(i8), Uint8(u8), Float64(f64), String(String), StringList(Vec<String>), Unsupported(u32),
 }
 
 #[allow(dead_code)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct MetadataEntry { pub key: String, pub value: GgufValue }
 
 #[allow(dead_code)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct GgufTensor { pub name: String, pub dimensions: Vec<u64>, pub tensor_type: u32, pub offset: u64 }
 
 #[allow(dead_code)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct GgufFile {
     pub magic: u32,
     pub version: u32,

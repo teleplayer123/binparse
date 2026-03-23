@@ -19,6 +19,7 @@ use std::path::PathBuf;
 
 mod gguf;
 mod elf;
+mod macho;
 
 // --- Data Structures ---
 
@@ -34,15 +35,17 @@ struct AppState {
     file_path: PathBuf,
 }
 
-// TODO: Make this an enum with variants for GGUF, ELF, MachO, etc. and store parsed data in each variant.
-//       Instead of multiple struct fields, data can be stored in one field with key value format requiring a parsing method for each file type.
+#[derive(Debug, Clone, PartialEq)]
+pub enum DataFileType {
+    GGUF(gguf::GgufFile),
+    ELF(elf::ElfFile),
+    MachO(macho::MachHeader64),
+    Unknown,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct DataFile {
-    pub magic: u32,
-    pub version: Option<u32>,
-    pub tensor_count: Option<u64>,
-    pub metadata_kv_count: Option<u32>,
-    pub data: Option<Vec<u8>>,
+    pub data_type: DataFileType,
 }
 
 impl DataFile {
@@ -60,22 +63,14 @@ impl DataFile {
     pub fn from_gguf(path: &PathBuf) -> io::Result<Self> {
         let gguf_file = gguf::GgufFile::parse(path)?;
         Ok(DataFile {
-            magic: gguf_file.magic,
-            version: Some(gguf_file.version),
-            tensor_count: Some(gguf_file.tensor_count),
-            metadata_kv_count: Some(gguf_file.metadata_kv_count),
-            data: None,
+            data_type: DataFileType::GGUF(gguf_file),
         })
     }
 
     pub fn from_elf(path: &PathBuf) -> io::Result<Self> {
         let elf_file = elf::ElfFile::parse(path)?;
         Ok(DataFile {
-            magic: elf_file.magic,
-            version: None,
-            tensor_count: None,
-            metadata_kv_count: None,
-            data: Some(elf_file.data),
+            data_type: DataFileType::ELF(elf_file),
         })
     }
 }
@@ -109,26 +104,41 @@ fn render_dashboard(f: &mut Frame, area: Rect, data: &DataFile) {
         .constraints([Constraint::Length(6), Constraint::Min(0)])
         .split(area);
 
-    let rows = if data.magic == 0x46554747 {
-        vec![
-            Line::from(vec![Span::raw(format!("Magic Number: 0x{:04x}", data.magic))]),
-            Line::from(vec![Span::raw(format!("GGUF version: {:?}", data.version.unwrap_or(0)))]),
-            Line::from(vec![Span::raw(format!("Tensor count: {:?}", data.tensor_count.unwrap_or(0)))]),
-            Line::from(vec![Span::raw(format!("Metadata KV count: {:?}", data.metadata_kv_count.unwrap_or(0)))]),
-            Line::from(vec![Span::raw("Press [H] to open hexdump view".to_string())]),
-        ]
-    } else if data.magic == 0x7f454c46 {
-        vec![
-            Line::from(vec![Span::raw(format!("Magic Number: 0x{:04x}", data.magic))]),
-            Line::from(vec![Span::raw("ELF file detected".to_string())]),
-            Line::from(vec![Span::raw("Press [H] to open hexdump view".to_string())]),
-        ]
-    } else {
-        vec![
-            Line::from(vec![Span::raw(format!("Magic Number: 0x{:04x}", data.magic))]),
-            Line::from(vec![Span::raw("Unknown file format".to_string())]),
-            Line::from(vec![Span::raw("Press [H] to open hexdump view".to_string())]),
-        ]
+    let rows = match &data.data_type {
+        DataFileType::GGUF(gguf_file) => {
+            vec![
+                Line::from(vec![Span::raw(format!("Magic Number: 0x{:04x}", gguf_file.magic))]),
+                Line::from(vec![Span::raw(format!("GGUF version: {:?}", gguf_file.version))]),
+                Line::from(vec![Span::raw(format!("Tensor count: {:?}", gguf_file.tensor_count))]),
+                Line::from(vec![Span::raw(format!("Metadata KV count: {:?}", gguf_file.metadata_kv_count))]),
+                Line::from(vec![Span::raw("Press [H] to open hexdump view".to_string())]),
+            ]
+        }
+        DataFileType::ELF(elf_file) => {
+            vec![
+                Line::from(vec![Span::raw(format!("Magic Number: 0x{:04x}", elf_file.magic))]),
+                Line::from(vec![Span::raw(format!("ELF file detected, size: {} bytes", elf_file.data.len()))]),
+                Line::from(vec![Span::raw("Press [H] to open hexdump view".to_string())]),
+            ]
+        }
+        DataFileType::MachO(macho_file) => {
+            vec![
+                Line::from(vec![Span::raw(format!("Magic Number: 0x{:04x}", macho_file.magic))]),
+                Line::from(vec![Span::raw(format!("CPU Type: {}", macho_file.cputype))]),
+                Line::from(vec![Span::raw(format!("CPU Subtype: {}", macho_file.cpusubtype))]),
+                Line::from(vec![Span::raw(format!("File Type: {}", macho_file.filetype))]),
+                Line::from(vec![Span::raw(format!("Number of Commands: {}", macho_file.ncmds))]),
+                Line::from(vec![Span::raw(format!("Size of Commands: {}", macho_file.sizeofcmds))]),
+                Line::from(vec![Span::raw(format!("Flags: 0x{:04x}", macho_file.flags))]),
+                Line::from(vec![Span::raw("Press [H] to open hexdump view".to_string())]),
+            ]
+        }
+        DataFileType::Unknown => {
+            vec![
+                Line::from(vec![Span::raw("Unknown file format".to_string())]),
+                Line::from(vec![Span::raw("Press [H] to open hexdump view".to_string())]),
+            ]
+        }
     };
 
     f.render_widget(Paragraph::new(rows).block(Block::default().title(" Header ").borders(Borders::ALL)), chunks[0]);
