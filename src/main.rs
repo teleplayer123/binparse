@@ -121,14 +121,12 @@ fn render_dashboard(f: &mut Frame, area: Rect, data: &DataFile) {
                 Line::from(vec![Span::raw(format!("GGUF version: {:?}", gguf_file.version))]),
                 Line::from(vec![Span::raw(format!("Tensor count: {:?}", gguf_file.tensor_count))]),
                 Line::from(vec![Span::raw(format!("Metadata KV count: {:?}", gguf_file.metadata_kv_count))]),
-                Line::from(vec![Span::raw("Press [H] to open hexdump view".to_string())]),
             ]
         }
         DataFileType::ELF(elf_file) => {
             vec![
                 Line::from(vec![Span::raw(format!("Magic Number: 0x{:04x}", elf_file.magic))]),
                 Line::from(vec![Span::raw(format!("ELF file detected, size: {} bytes", elf_file.data.len()))]),
-                Line::from(vec![Span::raw("Press [H] to open hexdump view".to_string())]),
             ]
         }
         DataFileType::MachO(macho_file) => {
@@ -140,7 +138,6 @@ fn render_dashboard(f: &mut Frame, area: Rect, data: &DataFile) {
                 Line::from(vec![Span::raw(format!("Number of Commands: {}", macho_file.ncmds))]),
                 Line::from(vec![Span::raw(format!("Size of Commands: {}", macho_file.sizeofcmds))]),
                 Line::from(vec![Span::raw(format!("Flags: 0x{:04x}", macho_file.flags))]),
-                Line::from(vec![Span::raw("Press [H] to open hexdump view".to_string())]),
             ]
         }
         DataFileType::Unknown => {
