@@ -94,6 +94,7 @@ fn get_urls_from_file(path: &PathBuf) -> Vec<String> {
     let mut buffer = Vec::new();
     file.read_to_end(&mut buffer).unwrap();
     let content = String::from_utf8_lossy(&buffer);
+    //let url_regex = Regex::new(r"(?i)\bhttps?://[a-z0-9-]+(\.[a-z0-9-]+)+([/?].*)?\b").unwrap();
     let url_regex = Regex::new(r"https?://[^\s]+").unwrap();
     url_regex.find_iter(&content).map(|m| m.as_str().to_string()).collect()
 }
