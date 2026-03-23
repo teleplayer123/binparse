@@ -55,6 +55,8 @@ impl DataFile {
             return Ok(gguf_file);
         } else if let Ok(elf_file) = Self::from_elf(path) {
             return Ok(elf_file);
+        } else if let Ok(macho_file) = Self::from_macho(path) {
+            return Ok(macho_file);
         } else {
             return Err(io::Error::new(io::ErrorKind::InvalidData, "Unsupported file format"));
         }
@@ -71,6 +73,14 @@ impl DataFile {
         let elf_file = elf::ElfFile::parse(path)?;
         Ok(DataFile {
             data_type: DataFileType::ELF(elf_file),
+        })
+    }
+
+    pub fn from_macho(path: &PathBuf) -> io::Result<Self> {
+        let file = File::open(path)?;
+        let macho_file = macho::MachHeader64::parse(file)?;
+        Ok(DataFile {
+            data_type: DataFileType::MachO(macho_file),
         })
     }
 }
@@ -162,7 +172,7 @@ const BANNER: &str = r#"
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Args::parse();
-    let data = DataFile::from_gguf(&args.path)?;
+    let data = DataFile::from_file(&args.path).unwrap_or(DataFile { data_type: DataFileType::Unknown });
     let mut app = AppState { view: View::Dashboard, hex_offset: 0, file_path: args.path };
 
     enable_raw_mode()?;

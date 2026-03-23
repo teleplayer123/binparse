@@ -20,7 +20,7 @@ pub struct MachHeader64 {
 
 impl MachHeader64 {
     /// Attempts to parse a MachHeader64 from a reader
-    pub fn from_reader<R: Read>(mut reader: R) -> io::Result<Self> {
+    pub fn parse<R: Read>(mut reader: R) -> io::Result<Self> {
         let mut buffer = [0u8; mem::size_of::<MachHeader64>()];
         reader.read_exact(&mut buffer)?;
 
