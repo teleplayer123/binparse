@@ -111,7 +111,7 @@ fn get_hexdump(path: &PathBuf, offset: u64, lines: u16) -> Vec<Line<'_>> {
 fn render_dashboard(f: &mut Frame, area: Rect, data: &DataFile) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([Constraint::Length(6), Constraint::Min(0)])
+        .constraints([Constraint::Length(10), Constraint::Min(0)])
         .split(area);
 
     let rows = match &data.data_type {
