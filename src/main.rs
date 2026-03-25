@@ -33,7 +33,7 @@ enum View {
 
 struct AppState {
     view: View,
-    hex_offset: u64,
+    offset: u64,
     file_path: PathBuf,
 }
 
@@ -89,14 +89,15 @@ impl DataFile {
 
 // --- Helpers ---
 
-fn get_urls_from_file(path: &PathBuf) -> Vec<String> {
+fn get_urls_from_file(path: &PathBuf, offset: u64, lines: u16) -> Vec<String> {
     let mut file = File::open(path).unwrap();
     let mut buffer = Vec::new();
     file.read_to_end(&mut buffer).unwrap();
     let content = String::from_utf8_lossy(&buffer);
     //let url_regex = Regex::new(r"(?i)\bhttps?://[a-z0-9-]+(\.[a-z0-9-]+)+([/?].*)?\b").unwrap();
     let url_regex = Regex::new(r"https?://[^\s]+").unwrap();
-    url_regex.find_iter(&content).map(|m| m.as_str().to_string()).collect()
+    let urls: Vec<String> = url_regex.find_iter(&content).map(|m| m.as_str().to_string()).collect();
+    urls.into_iter().skip(offset as usize).take(lines as usize).collect()
 }
 
 fn get_hexdump(path: &PathBuf, offset: u64, lines: u16) -> Vec<Line<'_>> {
@@ -164,12 +165,12 @@ fn render_dashboard(f: &mut Frame, area: Rect, data: &DataFile) {
 }
 
 fn render_hexdump(f: &mut Frame, area: Rect, app: &AppState) {
-    let lines = get_hexdump(&app.file_path, app.hex_offset, area.height - 2);
+    let lines = get_hexdump(&app.file_path, app.offset, area.height - 2);
     f.render_widget(Paragraph::new(lines).block(Block::default().title(" Hex Viewer ").borders(Borders::ALL)), area);
 }
 
 fn render_urls(f: &mut Frame, area: Rect, app: &AppState) {
-    let urls = get_urls_from_file(&app.file_path);
+    let urls = get_urls_from_file(&app.file_path, app.offset, area.height - 2);
     let lines: Vec<Line> = urls.into_iter().map(|url| Line::from(vec![Span::raw(url)])).collect();
     f.render_widget(Paragraph::new(lines).block(Block::default().title(" URLs ").borders(Borders::ALL)), area);
 }
@@ -188,7 +189,7 @@ const BANNER: &str = r#"
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Args::parse();
     let data = DataFile::from_file(&args.path).unwrap_or(DataFile { data_type: DataFileType::Unknown });
-    let mut app = AppState { view: View::Dashboard, hex_offset: 0, file_path: args.path };
+    let mut app = AppState { view: View::Dashboard, offset: 0, file_path: args.path };
 
     enable_raw_mode()?;
     let mut stdout = io::stdout();
@@ -214,7 +215,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             f.render_widget(banner, main_layout[0]);
 
             // Help bar
-            let help = "[Q]uit | [H]exdump | [U]RLs | [M]ain Dashboard | [Up/Down] Scroll Hex";
+            let help = "[Q]uit | [H]exdump | [U]RLs | [M]ain Dashboard | [Up/Down] Scroll";
             let help_widget = Paragraph::new(help)
                 .style(Style::default().fg(Color::Cyan))
                 .block(Block::default().borders(Borders::ALL).title("Help"));
@@ -235,8 +236,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     KeyCode::Char('h') => app.view = View::Hexdump,
                     KeyCode::Char('u') => app.view = View::URLs,
                     KeyCode::Char('m') => app.view = View::Dashboard,
-                    KeyCode::Down if app.view == View::Hexdump => app.hex_offset += 16,
-                    KeyCode::Up if app.view == View::Hexdump && app.hex_offset >= 16 => app.hex_offset -= 16,
+                    KeyCode::Down => {
+                        match app.view {
+                            View::Hexdump => app.offset += 16,
+                            View::URLs => app.offset += 1,
+                            View::Dashboard => app.offset = 0
+                        }
+                    },
+                    KeyCode::Up => {
+                        match app.view {
+                            View::Hexdump if app.offset >= 16 => app.offset -= 16,
+                            View::URLs if app.offset >= 1 => app.offset -= 1,
+                            View::Dashboard => {},
+                            View::Hexdump | View::URLs => app.offset = 0
+                        }
+                    },
                     _ => {}
                 }
             }
