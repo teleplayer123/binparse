@@ -240,7 +240,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         match app.view {
                             View::Hexdump => app.offset += 16,
                             View::URLs => app.offset += 1,
-                            View::Dashboard => {}
+                            View::Dashboard => app.offset = 0
                         }
                     },
                     KeyCode::Up => {
@@ -248,11 +248,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                             View::Hexdump if app.offset >= 16 => app.offset -= 16,
                             View::URLs if app.offset >= 1 => app.offset -= 1,
                             View::Dashboard => {},
-                            View::Hexdump | View::URLs => app.offset = 0,
+                            View::Hexdump | View::URLs => app.offset = 0
                         }
                     },
-                    // KeyCode::Down if app.view == View::Hexdump => app.hex_offset += 16,
-                    // KeyCode::Up if app.view == View::Hexdump && app.hex_offset >= 16 => app.hex_offset -= 16,
                     _ => {}
                 }
             }
