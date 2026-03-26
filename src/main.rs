@@ -233,8 +233,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             if let Event::Key(key) = event::read()? {
                 match key.code {
                     KeyCode::Char('q') => break,
-                    KeyCode::Char('h') => app.view = View::Hexdump,
-                    KeyCode::Char('u') => app.view = View::URLs,
+                    KeyCode::Char('h') => {
+                        app.view = View::Hexdump;
+                        app.offset = 0;
+                    },
+                    KeyCode::Char('u') => {
+                        app.view = View::URLs;
+                        app.offset = 0;
+                    },
                     KeyCode::Char('m') => app.view = View::Dashboard,
                     KeyCode::Down => {
                         match app.view {
@@ -247,8 +253,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         match app.view {
                             View::Hexdump if app.offset >= 16 => app.offset -= 16,
                             View::URLs if app.offset >= 1 => app.offset -= 1,
-                            View::Dashboard => {},
-                            View::Hexdump | View::URLs => app.offset = 0
+                            View::Hexdump | View::URLs => app.offset = 0,
+                            View::Dashboard => {}
                         }
                     },
                     _ => {}
