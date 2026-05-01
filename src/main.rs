@@ -95,7 +95,6 @@ impl DataFile {
 
 fn scan_urls_from_file(path: &PathBuf) -> Vec<String> {
     let re = URL_REGEX.get_or_init(|| Regex::new(r"https?://[\x21-\x7e]+").unwrap());
-
     let mut file = match File::open(path) {
         Ok(f) => f,
         Err(_) => return Vec::new(),
@@ -103,7 +102,6 @@ fn scan_urls_from_file(path: &PathBuf) -> Vec<String> {
 
     const CHUNK_SIZE: usize = 1024 * 1024; // 1MB per read
     const OVERLAP: usize = 4096;           // carry-over to catch URLs spanning chunk boundaries
-
     let mut urls = Vec::new();
     let mut tail: Vec<u8> = Vec::new();
     let mut chunk = vec![0u8; CHUNK_SIZE];
@@ -129,7 +127,6 @@ fn scan_urls_from_file(path: &PathBuf) -> Vec<String> {
 
         let keep_from = combined.len().saturating_sub(OVERLAP);
         tail = combined[keep_from..].to_vec();
-
         if n < CHUNK_SIZE {
             break;
         }
