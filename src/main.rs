@@ -13,14 +13,17 @@ use ratatui::{
     prelude::Alignment,
     Frame, Terminal,
 };
-use regex::Regex;
+use regex::bytes::Regex;
 use std::fs::File;
 use std::io::{self, Read, Seek, SeekFrom};
 use std::path::PathBuf;
+use std::sync::OnceLock;
 
 mod gguf;
 mod elf;
 mod macho;
+
+static URL_REGEX: OnceLock<Regex> = OnceLock::new();
 
 // --- Data Structures ---
 
@@ -35,6 +38,7 @@ struct AppState {
     view: View,
     offset: u64,
     file_path: PathBuf,
+    url_cache: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -89,15 +93,49 @@ impl DataFile {
 
 // --- Helpers ---
 
-fn get_urls_from_file(path: &PathBuf, offset: u64, lines: u16) -> Vec<String> {
-    let mut file = File::open(path).unwrap();
-    let mut buffer = Vec::new();
-    file.read_to_end(&mut buffer).unwrap();
-    let content = String::from_utf8_lossy(&buffer);
-    //let url_regex = Regex::new(r"(?i)\bhttps?://[a-z0-9-]+(\.[a-z0-9-]+)+([/?].*)?\b").unwrap();
-    let url_regex = Regex::new(r"https?://[^\s]+\n").unwrap();
-    let urls: Vec<String> = url_regex.find_iter(&content).map(|m| m.as_str().to_string()).collect();
-    urls.into_iter().skip(offset as usize).take(lines as usize).collect()
+fn scan_urls_from_file(path: &PathBuf) -> Vec<String> {
+    let re = URL_REGEX.get_or_init(|| Regex::new(r"https?://[\x21-\x7e]+").unwrap());
+
+    let mut file = match File::open(path) {
+        Ok(f) => f,
+        Err(_) => return Vec::new(),
+    };
+
+    const CHUNK_SIZE: usize = 1024 * 1024; // 1MB per read
+    const OVERLAP: usize = 4096;           // carry-over to catch URLs spanning chunk boundaries
+
+    let mut urls = Vec::new();
+    let mut tail: Vec<u8> = Vec::new();
+    let mut chunk = vec![0u8; CHUNK_SIZE];
+
+    loop {
+        let n = match file.read(&mut chunk) {
+            Ok(0) => break,
+            Ok(n) => n,
+            Err(_) => break,
+        };
+
+        let mut combined = tail;
+        combined.extend_from_slice(&chunk[..n]);
+        let boundary = combined.len() - n; // byte offset where new data starts
+
+        for m in re.find_iter(&combined) {
+            if m.start() >= boundary {
+                if let Ok(s) = std::str::from_utf8(m.as_bytes()) {
+                    urls.push(s.to_string());
+                }
+            }
+        }
+
+        let keep_from = combined.len().saturating_sub(OVERLAP);
+        tail = combined[keep_from..].to_vec();
+
+        if n < CHUNK_SIZE {
+            break;
+        }
+    }
+
+    urls
 }
 
 fn get_hexdump(path: &PathBuf, offset: u64, lines: u16) -> Vec<Line<'_>> {
@@ -170,8 +208,15 @@ fn render_hexdump(f: &mut Frame, area: Rect, app: &AppState) {
 }
 
 fn render_urls(f: &mut Frame, area: Rect, app: &AppState) {
-    let urls = get_urls_from_file(&app.file_path, app.offset, area.height - 2);
-    let lines: Vec<Line> = urls.into_iter().map(|url| Line::from(vec![Span::raw(url)])).collect();
+    let empty = Vec::new();
+    let all_urls = app.url_cache.as_ref().unwrap_or(&empty);
+    let lines_to_show = area.height.saturating_sub(2) as usize;
+    let lines: Vec<Line> = all_urls
+        .iter()
+        .skip(app.offset as usize)
+        .take(lines_to_show)
+        .map(|url| Line::from(vec![Span::raw(url.as_str())]))
+        .collect();
     f.render_widget(Paragraph::new(lines).block(Block::default().title(" URLs ").borders(Borders::ALL)), area);
 }
 
@@ -189,7 +234,7 @@ const BANNER: &str = r#"
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Args::parse();
     let data = DataFile::from_file(&args.path).unwrap_or(DataFile { data_type: DataFileType::Unknown });
-    let mut app = AppState { view: View::Dashboard, offset: 0, file_path: args.path };
+    let mut app = AppState { view: View::Dashboard, offset: 0, file_path: args.path, url_cache: None };
 
     enable_raw_mode()?;
     let mut stdout = io::stdout();
@@ -238,6 +283,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         app.offset = 0;
                     },
                     KeyCode::Char('u') => {
+                        if app.url_cache.is_none() {
+                            app.url_cache = Some(scan_urls_from_file(&app.file_path));
+                        }
                         app.view = View::URLs;
                         app.offset = 0;
                     },
