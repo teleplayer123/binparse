@@ -257,6 +257,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                             View::Dashboard => {}
                         }
                     },
+                    KeyCode::Char(' ') => {
+                        match app.view {
+                            View::Hexdump => app.offset += 160,
+                            View::URLs => app.offset += 10,
+                            View::Dashboard => {}
+                        }
+                    },
                     _ => {}
                 }
             }
