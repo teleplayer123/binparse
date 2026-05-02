@@ -173,19 +173,24 @@ fn render_dashboard(f: &mut Frame, area: Rect, data: &DataFile, offset: usize) {
         }
         DataFileType::ELF(elf_file) => {
             vec![
-                Line::from(vec![Span::raw(format!("Magic Number: 0x{:04x}", elf_file.magic))]),
-                Line::from(vec![Span::raw(format!("ELF file detected, size: {} bytes", elf_file.data.len()))]),
+                Line::from(vec![Span::raw(format!("Magic Number: 0x{:08x}", elf_file.magic))]),
+                Line::from(vec![Span::raw(format!("Class:        {}", elf_file.class_name()))]),
+                Line::from(vec![Span::raw(format!("Encoding:     {}", elf_file.encoding_name()))]),
+                Line::from(vec![Span::raw(format!("OS/ABI:       {}", elf_file.os_abi_name()))]),
+                Line::from(vec![Span::raw(format!("Type:         {}", elf_file.type_name()))]),
+                Line::from(vec![Span::raw(format!("Machine:      {}", elf_file.machine_name()))]),
+                Line::from(vec![Span::raw(format!("Entry Point:  {:#018x}", elf_file.entry))]),
+                Line::from(vec![Span::raw(format!("File Size:    {} bytes", elf_file.file_size))]),
             ]
         }
         DataFileType::MachO(macho_file) => {
             vec![
-                Line::from(vec![Span::raw(format!("Magic Number: 0x{:04x}", macho_file.magic))]),
-                Line::from(vec![Span::raw(format!("CPU Type: {}", macho_file.cputype))]),
-                Line::from(vec![Span::raw(format!("CPU Subtype: {}", macho_file.cpusubtype))]),
-                Line::from(vec![Span::raw(format!("File Type: {}", macho_file.filetype))]),
-                Line::from(vec![Span::raw(format!("Number of Commands: {}", macho_file.ncmds))]),
-                Line::from(vec![Span::raw(format!("Size of Commands: {}", macho_file.sizeofcmds))]),
-                Line::from(vec![Span::raw(format!("Flags: 0x{:04x}", macho_file.flags))]),
+                Line::from(vec![Span::raw(format!("Magic Number:   0x{:08x}", macho_file.magic))]),
+                Line::from(vec![Span::raw(format!("CPU Type:       {} ({})", macho_file.cpu_type_name(), macho_file.cputype))]),
+                Line::from(vec![Span::raw(format!("CPU Subtype:    {}", macho_file.cpusubtype))]),
+                Line::from(vec![Span::raw(format!("File Type:      {}", macho_file.file_type_name()))]),
+                Line::from(vec![Span::raw(format!("Load Commands:  {} ({} bytes)", macho_file.ncmds, macho_file.sizeofcmds))]),
+                Line::from(vec![Span::raw(format!("Flags:          {:#010x}", macho_file.flags))]),
             ]
         }
         DataFileType::Unknown => {
@@ -225,6 +230,54 @@ fn render_dashboard(f: &mut Frame, area: Rect, data: &DataFile, offset: usize) {
         let visible: Vec<Line> = lines.into_iter().skip(offset).take(visible_height).collect();
         f.render_widget(
             Paragraph::new(visible).block(Block::default().title(" Metadata & Tensors ").borders(Borders::ALL)),
+            chunks[1],
+        );
+    }
+
+    if let DataFileType::ELF(elf_file) = &data.data_type {
+        let mut lines: Vec<Line> = Vec::new();
+
+        lines.push(Line::from(vec![Span::styled(" Sections ", Style::default().fg(Color::Yellow))]));
+        for sec in &elf_file.sections {
+            if sec.name.is_empty() && sec.sh_type == 0 { continue; }
+            lines.push(Line::from(vec![
+                Span::styled(format!("  {:30}", sec.name), Style::default().fg(Color::Cyan)),
+                Span::raw(format!("{:12}  size: {:>10}  addr: {:#010x}", sec.type_name(), sec.size, sec.addr)),
+            ]));
+        }
+
+        lines.push(Line::from(""));
+        lines.push(Line::from(vec![Span::styled(" Segments ", Style::default().fg(Color::Yellow))]));
+        for seg in &elf_file.segments {
+            lines.push(Line::from(vec![
+                Span::styled(format!("  {:16}", seg.type_name()), Style::default().fg(Color::Cyan)),
+                Span::raw(format!("{}  vaddr: {:#010x}  filesz: {:>10}  memsz: {:>10}", seg.flags_str(), seg.vaddr, seg.filesz, seg.memsz)),
+            ]));
+        }
+
+        let visible_height = chunks[1].height.saturating_sub(2) as usize;
+        let visible: Vec<Line> = lines.into_iter().skip(offset).take(visible_height).collect();
+        f.render_widget(
+            Paragraph::new(visible).block(Block::default().title(" Sections & Segments ").borders(Borders::ALL)),
+            chunks[1],
+        );
+    }
+
+    if let DataFileType::MachO(macho_file) = &data.data_type {
+        let mut lines: Vec<Line> = Vec::new();
+
+        lines.push(Line::from(vec![Span::styled(" Load Commands ", Style::default().fg(Color::Yellow))]));
+        for lc in &macho_file.load_commands {
+            lines.push(Line::from(vec![
+                Span::styled(format!("  {:30}", lc.type_name()), Style::default().fg(Color::Cyan)),
+                Span::raw(lc.detail()),
+            ]));
+        }
+
+        let visible_height = chunks[1].height.saturating_sub(2) as usize;
+        let visible: Vec<Line> = lines.into_iter().skip(offset).take(visible_height).collect();
+        f.render_widget(
+            Paragraph::new(visible).block(Block::default().title(" Load Commands ").borders(Borders::ALL)),
             chunks[1],
         );
     }
@@ -317,7 +370,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         app.view = View::URLs;
                         app.offset = 0;
                     },
-                    KeyCode::Char('m') => app.view = View::Dashboard,
+                    KeyCode::Char('m') => { 
+                        app.view = View::Dashboard;
+                        app.offset = 0;
+                    },
                     KeyCode::Down => {
                         match app.view {
                             View::Hexdump => app.offset += 16,
