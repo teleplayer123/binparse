@@ -156,7 +156,7 @@ fn get_hexdump(path: &PathBuf, offset: u64, lines: u16) -> Vec<Line<'_>> {
 
 // --- UI Logic ---
 
-fn render_dashboard(f: &mut Frame, area: Rect, data: &DataFile) {
+fn render_dashboard(f: &mut Frame, area: Rect, data: &DataFile, offset: usize) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([Constraint::Length(10), Constraint::Min(0)])
@@ -165,10 +165,10 @@ fn render_dashboard(f: &mut Frame, area: Rect, data: &DataFile) {
     let rows = match &data.data_type {
         DataFileType::GGUF(gguf_file) => {
             vec![
-                Line::from(vec![Span::raw(format!("Magic Number: 0x{:04x}", gguf_file.magic))]),
-                Line::from(vec![Span::raw(format!("GGUF version: {:?}", gguf_file.version))]),
-                Line::from(vec![Span::raw(format!("Tensor count: {:?}", gguf_file.tensor_count))]),
-                Line::from(vec![Span::raw(format!("Metadata KV count: {:?}", gguf_file.metadata_kv_count))]),
+                Line::from(vec![Span::raw(format!("Magic Number: 0x{:08x}", gguf_file.magic))]),
+                Line::from(vec![Span::raw(format!("GGUF Version: {}", gguf_file.version))]),
+                Line::from(vec![Span::raw(format!("Tensor Count: {}", gguf_file.tensor_count))]),
+                Line::from(vec![Span::raw(format!("Metadata KV Count: {}", gguf_file.metadata_kv_count))]),
             ]
         }
         DataFileType::ELF(elf_file) => {
@@ -197,6 +197,37 @@ fn render_dashboard(f: &mut Frame, area: Rect, data: &DataFile) {
     };
 
     f.render_widget(Paragraph::new(rows).block(Block::default().title(" Header ").borders(Borders::ALL)), chunks[0]);
+
+    if let DataFileType::GGUF(gguf_file) = &data.data_type {
+        let mut lines: Vec<Line> = Vec::new();
+
+        lines.push(Line::from(vec![Span::styled(" Metadata ", Style::default().fg(Color::Yellow))]));
+        for entry in &gguf_file.metadata {
+            let raw = entry.value.to_string();
+            let value_str = if raw.len() > 80 { format!("{}…", &raw[..80]) } else { raw };
+            lines.push(Line::from(vec![
+                Span::styled(format!("  {}: ", entry.key), Style::default().fg(Color::Cyan)),
+                Span::raw(value_str),
+            ]));
+        }
+
+        lines.push(Line::from(""));
+        lines.push(Line::from(vec![Span::styled(" Tensors ", Style::default().fg(Color::Yellow))]));
+        for tensor in &gguf_file.tensors {
+            let dims: Vec<String> = tensor.dimensions.iter().map(|d| d.to_string()).collect();
+            lines.push(Line::from(vec![
+                Span::styled(format!("  {}: ", tensor.name), Style::default().fg(Color::Cyan)),
+                Span::raw(format!("{} [{}] @ offset {}", tensor.type_name(), dims.join("×"), tensor.offset)),
+            ]));
+        }
+
+        let visible_height = chunks[1].height.saturating_sub(2) as usize;
+        let visible: Vec<Line> = lines.into_iter().skip(offset).take(visible_height).collect();
+        f.render_widget(
+            Paragraph::new(visible).block(Block::default().title(" Metadata & Tensors ").borders(Borders::ALL)),
+            chunks[1],
+        );
+    }
 }
 
 fn render_hexdump(f: &mut Frame, area: Rect, app: &AppState) {
@@ -265,7 +296,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             // Main content
             match app.view {
-                View::Dashboard => render_dashboard(f, main_layout[2], &data),
+                View::Dashboard => render_dashboard(f, main_layout[2], &data, app.offset as usize),
                 View::Hexdump => render_hexdump(f, main_layout[2], &app),
                 View::URLs => render_urls(f, main_layout[2], &app),
             }
@@ -291,22 +322,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         match app.view {
                             View::Hexdump => app.offset += 16,
                             View::URLs => app.offset += 1,
-                            View::Dashboard => app.offset = 0
+                            View::Dashboard => app.offset += 1,
                         }
                     },
                     KeyCode::Up => {
                         match app.view {
                             View::Hexdump if app.offset >= 16 => app.offset -= 16,
                             View::URLs if app.offset >= 1 => app.offset -= 1,
-                            View::Hexdump | View::URLs => app.offset = 0,
-                            View::Dashboard => {}
+                            View::Dashboard if app.offset >= 1 => app.offset -= 1,
+                            View::Hexdump | View::URLs | View::Dashboard => app.offset = 0,
                         }
                     },
                     KeyCode::Char(' ') => {
                         match app.view {
                             View::Hexdump => app.offset += 160,
                             View::URLs => app.offset += 10,
-                            View::Dashboard => {}
+                            View::Dashboard => app.offset += 10,
                         }
                     },
                     _ => {}
