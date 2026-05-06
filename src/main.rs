@@ -42,52 +42,35 @@ struct AppState {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum DataFileType {
+pub enum DataFile {
     GGUF(gguf::GgufFile),
     ELF(elf::ElfFile),
     MachO(macho::MachHeader64),
     Unknown,
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub struct DataFile {
-    pub data_type: DataFileType,
-}
-
 impl DataFile {
     pub fn from_file(path: &PathBuf) -> io::Result<Self> {
-        // Get correct file type
-        if let Ok(gguf_file) = Self::from_gguf(path) {
-            return Ok(gguf_file);
-        } else if let Ok(elf_file) = Self::from_elf(path) {
-            return Ok(elf_file);
-        } else if let Ok(macho_file) = Self::from_macho(path) {
-            return Ok(macho_file);
-        } else {
-            return Err(io::Error::new(io::ErrorKind::InvalidData, "Unsupported file format"));
+        if let Ok(f) = Self::from_gguf(path) {
+            return Ok(f);
+        } else if let Ok(f) = Self::from_elf(path) {
+            return Ok(f);
+        } else if let Ok(f) = Self::from_macho(path) {
+            return Ok(f);
         }
+        Err(io::Error::new(io::ErrorKind::InvalidData, "Unsupported file format"))
     }
 
     pub fn from_gguf(path: &PathBuf) -> io::Result<Self> {
-        let gguf_file = gguf::GgufFile::parse(path)?;
-        Ok(DataFile {
-            data_type: DataFileType::GGUF(gguf_file),
-        })
+        Ok(DataFile::GGUF(gguf::GgufFile::parse(path)?))
     }
 
     pub fn from_elf(path: &PathBuf) -> io::Result<Self> {
-        let elf_file = elf::ElfFile::parse(path)?;
-        Ok(DataFile {
-            data_type: DataFileType::ELF(elf_file),
-        })
+        Ok(DataFile::ELF(elf::ElfFile::parse(path)?))
     }
 
     pub fn from_macho(path: &PathBuf) -> io::Result<Self> {
-        let file = File::open(path)?;
-        let macho_file = macho::MachHeader64::parse(file)?;
-        Ok(DataFile {
-            data_type: DataFileType::MachO(macho_file),
-        })
+        Ok(DataFile::MachO(macho::MachHeader64::parse(File::open(path)?)?))
     }
 }
 
@@ -162,8 +145,8 @@ fn render_dashboard(f: &mut Frame, area: Rect, data: &DataFile, offset: usize) {
         .constraints([Constraint::Length(10), Constraint::Min(0)])
         .split(area);
 
-    let rows = match &data.data_type {
-        DataFileType::GGUF(gguf_file) => {
+    let rows = match data {
+        DataFile::GGUF(gguf_file) => {
             vec![
                 Line::from(vec![Span::raw(format!("Magic Number: 0x{:08x}", gguf_file.magic))]),
                 Line::from(vec![Span::raw(format!("GGUF Version: {}", gguf_file.version))]),
@@ -171,7 +154,7 @@ fn render_dashboard(f: &mut Frame, area: Rect, data: &DataFile, offset: usize) {
                 Line::from(vec![Span::raw(format!("Metadata KV Count: {}", gguf_file.metadata_kv_count))]),
             ]
         }
-        DataFileType::ELF(elf_file) => {
+        DataFile::ELF(elf_file) => {
             vec![
                 Line::from(vec![Span::raw(format!("Magic Number: 0x{:08x}", elf_file.magic))]),
                 Line::from(vec![Span::raw(format!("Class:        {}", elf_file.class_name()))]),
@@ -183,7 +166,7 @@ fn render_dashboard(f: &mut Frame, area: Rect, data: &DataFile, offset: usize) {
                 Line::from(vec![Span::raw(format!("File Size:    {} bytes", elf_file.file_size))]),
             ]
         }
-        DataFileType::MachO(macho_file) => {
+        DataFile::MachO(macho_file) => {
             vec![
                 Line::from(vec![Span::raw(format!("Magic Number:   0x{:08x}", macho_file.magic))]),
                 Line::from(vec![Span::raw(format!("CPU Type:       {} ({})", macho_file.cpu_type_name(), macho_file.cputype))]),
@@ -193,7 +176,7 @@ fn render_dashboard(f: &mut Frame, area: Rect, data: &DataFile, offset: usize) {
                 Line::from(vec![Span::raw(format!("Flags:          {:#010x}", macho_file.flags))]),
             ]
         }
-        DataFileType::Unknown => {
+        DataFile::Unknown => {
             vec![
                 Line::from(vec![Span::raw("Unknown file format".to_string())]),
                 Line::from(vec![Span::raw("Press [H] to open hexdump view".to_string())]),
@@ -203,7 +186,7 @@ fn render_dashboard(f: &mut Frame, area: Rect, data: &DataFile, offset: usize) {
 
     f.render_widget(Paragraph::new(rows).block(Block::default().title(" Header ").borders(Borders::ALL)), chunks[0]);
 
-    if let DataFileType::GGUF(gguf_file) = &data.data_type {
+    if let DataFile::GGUF(gguf_file) = data {
         let mut lines: Vec<Line> = Vec::new();
 
         lines.push(Line::from(vec![Span::styled(" Metadata ", Style::default().fg(Color::Yellow))]));
@@ -234,7 +217,7 @@ fn render_dashboard(f: &mut Frame, area: Rect, data: &DataFile, offset: usize) {
         );
     }
 
-    if let DataFileType::ELF(elf_file) = &data.data_type {
+    if let DataFile::ELF(elf_file) = data {
         let mut lines: Vec<Line> = Vec::new();
 
         lines.push(Line::from(vec![Span::styled(" Sections ", Style::default().fg(Color::Yellow))]));
@@ -263,7 +246,7 @@ fn render_dashboard(f: &mut Frame, area: Rect, data: &DataFile, offset: usize) {
         );
     }
 
-    if let DataFileType::MachO(macho_file) = &data.data_type {
+    if let DataFile::MachO(macho_file) = data {
         let mut lines: Vec<Line> = Vec::new();
 
         lines.push(Line::from(vec![Span::styled(" Load Commands ", Style::default().fg(Color::Yellow))]));
@@ -314,7 +297,7 @@ const BANNER: &str = r#"
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Args::parse();
-    let data = DataFile::from_file(&args.path).unwrap_or(DataFile { data_type: DataFileType::Unknown });
+    let data = DataFile::from_file(&args.path).unwrap_or(DataFile::Unknown);
     let mut app = AppState { view: View::Dashboard, offset: 0, file_path: args.path, url_cache: None };
 
     enable_raw_mode()?;
