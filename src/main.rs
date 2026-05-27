@@ -22,6 +22,7 @@ use std::sync::OnceLock;
 mod gguf;
 mod elf;
 mod macho;
+mod png;
 
 static URL_REGEX: OnceLock<Regex> = OnceLock::new();
 
@@ -46,6 +47,7 @@ pub enum DataFile {
     GGUF(gguf::GgufFile),
     ELF(elf::ElfFile),
     MachO(macho::MachHeader64),
+    PNG(png::PngFile),
     Unknown,
 }
 
@@ -56,6 +58,8 @@ impl DataFile {
         } else if let Ok(f) = Self::from_elf(path) {
             return Ok(f);
         } else if let Ok(f) = Self::from_macho(path) {
+            return Ok(f);
+        } else if let Ok(f) = Self::from_png(path) {
             return Ok(f);
         }
         Err(io::Error::new(io::ErrorKind::InvalidData, "Unsupported file format"))
@@ -71,6 +75,10 @@ impl DataFile {
 
     pub fn from_macho(path: &PathBuf) -> io::Result<Self> {
         Ok(DataFile::MachO(macho::MachHeader64::parse(File::open(path)?)?))
+    }
+
+    pub fn from_png(path: &PathBuf) -> io::Result<Self> {
+        Ok(DataFile::PNG(png::PngFile::parse(path)?))
     }
 }
 
@@ -176,6 +184,18 @@ fn render_dashboard(f: &mut Frame, area: Rect, data: &DataFile, offset: usize) {
                 Line::from(vec![Span::raw(format!("Flags:          {:#010x}", macho_file.flags))]),
             ]
         }
+        DataFile::PNG(png_file) => {
+            vec![
+                Line::from(vec![Span::raw(format!("Magic Number:   0x89504e47 (\\x89PNG)"))]),
+                Line::from(vec![Span::raw(format!("Dimensions:     {}x{} pixels", png_file.width, png_file.height))]),
+                Line::from(vec![Span::raw(format!("Bit Depth:      {}", png_file.bit_depth))]),
+                Line::from(vec![Span::raw(format!("Color Type:     {} ({})", png_file.color_type, png_file.color_type_name()))]),
+                Line::from(vec![Span::raw(format!("Compression:    {}", png_file.compression_method))]),
+                Line::from(vec![Span::raw(format!("Filter Method:  {}", png_file.filter_method))]),
+                Line::from(vec![Span::raw(format!("Interlace:      {} ({})", png_file.interlace_method, png_file.interlace_name()))]),
+                Line::from(vec![Span::raw(format!("Chunk Count:    {}", png_file.chunks.len()))]),
+            ]
+        }
         DataFile::Unknown => {
             vec![
                 Line::from(vec![Span::raw("Unknown file format".to_string())]),
@@ -261,6 +281,25 @@ fn render_dashboard(f: &mut Frame, area: Rect, data: &DataFile, offset: usize) {
         let visible: Vec<Line> = lines.into_iter().skip(offset).take(visible_height).collect();
         f.render_widget(
             Paragraph::new(visible).block(Block::default().title(" Load Commands ").borders(Borders::ALL)),
+            chunks[1],
+        );
+    }
+
+    if let DataFile::PNG(png_file) = data {
+        let mut lines: Vec<Line> = Vec::new();
+
+        lines.push(Line::from(vec![Span::styled(" Chunks ", Style::default().fg(Color::Yellow))]));
+        for chunk in &png_file.chunks {
+            lines.push(Line::from(vec![
+                Span::styled(format!("  {:8}", chunk.chunk_type), Style::default().fg(Color::Cyan)),
+                Span::raw(format!("{:30}  {} bytes", chunk.description(), chunk.length)),
+            ]));
+        }
+
+        let visible_height = chunks[1].height.saturating_sub(2) as usize;
+        let visible: Vec<Line> = lines.into_iter().skip(offset).take(visible_height).collect();
+        f.render_widget(
+            Paragraph::new(visible).block(Block::default().title(" Chunks ").borders(Borders::ALL)),
             chunks[1],
         );
     }
